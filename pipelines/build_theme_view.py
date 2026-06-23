@@ -163,6 +163,9 @@ def main() -> None:
             reverse=True)
         related = [{"id": o, "label": label_of(o), "w": w} for w, o in linked if w >= MIN_COOCCUR][:6]
         ws = wstance[t]
+        # daily volume series (last ~21 days) for the trend sparkline in the panel
+        tdays = sorted((d, b["count"]) for (tt, d), b in theme_day.items() if tt == t)
+        trend = [c for _, c in tdays[-21:]]
         nodes.append({
             "id": t, "label": label_of(t), "freq": f,
             "heat": round(wf, 1),  # decay-weighted "지금 열기"
@@ -171,6 +174,7 @@ def main() -> None:
             # stance bar uses DECAY-weighted counts -> reflects the CURRENT framing
             "stance": {"bull": round(ws["bullish"], 1), "bear": round(ws["bearish"], 1),
                        "neut": round(ws["neutral"], 1)},
+            "trend": trend,
             "entities": ents,
             "related": related,
             "heads": top(node_heads[t]),
@@ -299,13 +303,22 @@ function entChips(ents){
   return `<div class=seclabel>관련 기업·대상 (작은 버블 · 클릭 → 이 기업 뉴스)</div><div class=chips>`+
     ents.map((e,i)=>`<span class="chip ci" data-kind=ent data-ei="${i}">${esc(e.name)} <span style="color:#8ab">${e.n}</span></span>`).join("")+`</div>`;
 }
+function trendChart(trend){
+  if(!trend||trend.length<2)return "";
+  const w=320,h=46,mx=Math.max(...trend)||1;
+  const pts=trend.map((v,i)=>`${(i/(trend.length-1)*w).toFixed(1)},${(h-v/mx*h).toFixed(1)}`).join(" ");
+  const up=trend[trend.length-1]>=trend[0];
+  return `<div class=seclabel>이슈 열기 추이 (최근 ${trend.length}일 · 뉴스량)</div>`+
+    `<svg width="${w}" height="${h}" style="background:#0e131c;border-radius:6px;margin-top:4px">`+
+    `<polyline points="${pts}" fill="none" stroke="${up?'#6BCB77':'#FF6B6B'}" stroke-width="2"/></svg>`;
+}
 let curNode=null;
 function render(html){document.getElementById('panel').innerHTML=crumb()+html; bindChips();}
 function showNode(n,push=true){
   curNode=n;
   if(push)trail.push({kind:'node',id:n.id,name:n.label});
   render(`<h2>${n.label}</h2><div class=sub>뉴스 ${n.freq}건 · <span style="color:#FFD93D">지금 열기 ${n.heat}</span> <span style="color:#667">(최근 가중)</span></div>`
-   + summaryBox(n.summary) + stanceBar(n.stance)
+   + summaryBox(n.summary) + stanceBar(n.stance) + trendChart(n.trend)
    + relChips(n.related) + entChips(n.entities)
    + `<div class=seclabel>근거 헤드라인 (긍정/부정 우선)</div>` + heads(n.heads));
 }
