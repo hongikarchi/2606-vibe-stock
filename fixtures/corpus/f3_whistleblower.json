@@ -1,0 +1,8 @@
+[
+  {"doc_id": "f3_whistle", "source_id": "whistle", "lang": "ko", "event_time": "2024-04-10T07:00:00", "ingest_time": "2024-04-10T07:30:00",
+   "text": "중소제약의 재무제표에 분식회계 정황이 있다는 내부 제보가 접수됐다. 회계 감리가 필요하다는 지적이다."},
+  {"doc_id": "f3_bull1", "source_id": "community_01", "lang": "ko", "event_time": "2024-04-10T08:00:00", "ingest_time": "2024-04-10T08:05:00",
+   "text": "중소제약 신약 기대감에 급등 호재 가득"},
+  {"doc_id": "f3_bull2", "source_id": "anon_01", "lang": "ko", "event_time": "2024-04-10T08:02:00", "ingest_time": "2024-04-10T08:06:00",
+   "text": "중소제약 사상최대 실적 기대 강세 지속"}
+]

@@ -1,0 +1,11 @@
+{
+  "claims": [
+    {"subject_surface": "삼성전자", "relation": "guides_to", "object_text": "",
+     "claim_key": "sec_hbm_expansion", "stance": "neutral",
+     "source_span": "삼성전자가 신규 HBM 라인 증설을 공시", "span_start": 0, "span_end": 22},
+    {"subject_surface": "삼성전자우", "relation": "sentiment", "object_text": "",
+     "claim_key": "sec_pref_volume", "stance": "neutral",
+     "source_span": "삼전 우선주(삼성전자우)도 거래량이 늘었다", "span_start": 24, "span_end": 46}
+  ],
+  "elevated_entities": ["삼성전자", "삼성전자우"]
+}

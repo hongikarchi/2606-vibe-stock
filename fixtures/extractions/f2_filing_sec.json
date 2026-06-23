@@ -1,0 +1,11 @@
+{
+  "claims": [
+    {"subject_surface": "삼성전자", "relation": "supplies", "object_text": "한미반도체",
+     "claim_key": "hanmi_hbm_supply", "stance": "neutral",
+     "source_span": "삼성전자는 한미반도체로부터 HBM 본딩 장비를 공급받는 계약을 체결", "span_start": 0, "span_end": 38},
+    {"subject_surface": "SK하이닉스", "relation": "supplies", "object_text": "한미반도체",
+     "claim_key": "hanmi_hbm_supply", "stance": "neutral",
+     "source_span": "SK하이닉스 역시 한미반도체 장비를 도입한다", "span_start": 50, "span_end": 73}
+  ],
+  "elevated_entities": ["삼성전자", "SK하이닉스", "한미반도체"]
+}

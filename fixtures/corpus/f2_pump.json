@@ -1,0 +1,15 @@
+[
+  {"doc_id": "f2_filing_sec",  "source_id": "dart",  "lang": "ko", "event_time": "2024-03-02T08:00:00", "ingest_time": "2024-03-02T08:05:00",
+   "text": "삼성전자는 한미반도체로부터 HBM 본딩 장비를 공급받는 계약을 체결했다고 공시했다. SK하이닉스 역시 한미반도체 장비를 도입한다."},
+
+  {"doc_id": "f2_pump_root",   "source_id": "anon_01", "lang": "ko", "event_time": "2024-03-02T09:00:00", "ingest_time": "2024-03-02T09:00:00",
+   "text": "테마주Z 곧 상한가 간다 지금 안타면 후회한다 세력 들어왔다 가즈아"},
+  {"doc_id": "f2_pump_a1",     "source_id": "anon_02", "lang": "ko", "event_time": "2024-03-02T09:03:00", "ingest_time": "2024-03-02T09:03:00",
+   "text": "테마주Z 곧 상한가 간다 지금 안타면 후회한다 세력 들어왔다 가즈아 ㄱㄱ"},
+  {"doc_id": "f2_pump_a2",     "source_id": "anon_03", "lang": "ko", "event_time": "2024-03-02T09:05:00", "ingest_time": "2024-03-02T09:05:00",
+   "text": "테마주Z 곧 상한가 간다 지금 안타면 후회한다 세력 들어왔다 가즈아 진짜임"},
+  {"doc_id": "f2_pump_a3",     "source_id": "community_01", "lang": "ko", "event_time": "2024-03-02T09:07:00", "ingest_time": "2024-03-02T09:07:00",
+   "text": "테마주Z 곧 상한가 간다 지금 안타면 후회한다 세력 들어왔다 가즈아 풀매수"},
+  {"doc_id": "f2_pump_a4",     "source_id": "anon_01", "lang": "ko", "event_time": "2024-03-02T09:09:00", "ingest_time": "2024-03-02T09:09:00",
+   "text": "테마주Z 곧 상한가 간다 지금 안타면 후회한다 세력 들어왔다 가즈아 가즈아"}
+]

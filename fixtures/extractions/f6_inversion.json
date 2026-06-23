@@ -1,0 +1,9 @@
+{
+  "_comment": "SKEWED: the span DENIES bankruptcy ('사실무근이라고 부인'), but the extractor asserts bankruptcy risk as a positive fact. Cheap substring-grounding (S0) would pass it because '파산' resolves; the negation/attribution guard (02c fix #2) catches the polarity inversion.",
+  "claims": [
+    {"subject_surface": "SK하이닉스", "relation": "risk_flag", "object_text": "",
+     "claim_key": "skh_bankruptcy", "stance": "bearish",
+     "source_span": "SK하이닉스 관련 파산 우려는 사실무근이라고 부인했다", "span_start": 8, "span_end": 35}
+  ],
+  "elevated_entities": ["SK하이닉스"]
+}

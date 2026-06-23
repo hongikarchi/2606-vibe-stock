@@ -1,0 +1,11 @@
+{
+  "claims": [
+    {"subject_surface": "Samsung Electronics", "relation": "supplies", "object_text": "SK하이닉스",
+     "claim_key": "sec_hbm_supplier", "stance": "neutral",
+     "source_span": "Samsung Electronics expands HBM capacity", "span_start": 0, "span_end": 40},
+    {"subject_surface": "005930", "relation": "sentiment", "object_text": "",
+     "claim_key": "sec_price_up", "stance": "bullish",
+     "source_span": "005930 rose", "span_start": 80, "span_end": 91}
+  ],
+  "elevated_entities": ["Samsung Electronics", "005930"]
+}

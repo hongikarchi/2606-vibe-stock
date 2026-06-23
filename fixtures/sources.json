@@ -1,0 +1,11 @@
+[
+  {"source_id": "dart",          "name": "DART 전자공시",      "source_type": "filing",        "credibility_class": "filing",        "credibility": 0.92, "is_trust_seed": true},
+  {"source_id": "krx",           "name": "한국거래소",          "source_type": "regulator",     "credibility_class": "regulator",     "credibility": 1.00, "is_trust_seed": true},
+  {"source_id": "edgar",         "name": "SEC EDGAR",          "source_type": "filing",        "credibility_class": "filing",        "credibility": 0.92, "is_trust_seed": true},
+  {"source_id": "yonhap",        "name": "연합뉴스",            "source_type": "major_news",    "credibility_class": "major_news",    "credibility": 0.60, "is_trust_seed": false},
+  {"source_id": "whistle",       "name": "내부고발 제보",        "source_type": "whistleblower", "credibility_class": "whistleblower", "credibility": 0.70, "is_trust_seed": false},
+  {"source_id": "community_01",  "name": "종토방 A",            "source_type": "community",     "credibility_class": "community",     "credibility": 0.20, "is_trust_seed": false},
+  {"source_id": "anon_01",       "name": "익명 게시판 1",        "source_type": "anon",          "credibility_class": "anon",          "credibility": 0.10, "is_trust_seed": false},
+  {"source_id": "anon_02",       "name": "익명 게시판 2",        "source_type": "anon",          "credibility_class": "anon",          "credibility": 0.10, "is_trust_seed": false},
+  {"source_id": "anon_03",       "name": "익명 게시판 3",        "source_type": "anon",          "credibility_class": "anon",          "credibility": 0.10, "is_trust_seed": false}
+]

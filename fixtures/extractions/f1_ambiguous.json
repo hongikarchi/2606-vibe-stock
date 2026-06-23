@@ -1,0 +1,8 @@
+{
+  "claims": [
+    {"subject_surface": "Samsung", "relation": "sentiment", "object_text": "",
+     "claim_key": "samsung_generic", "stance": "neutral",
+     "source_span": "Samsung is everywhere these days", "span_start": 0, "span_end": 32}
+  ],
+  "elevated_entities": ["Samsung"]
+}

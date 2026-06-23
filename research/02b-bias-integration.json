@@ -1,0 +1,191 @@
+{
+  "layerDescription": "The Interpretation-Integrity Layer is ONE structural-first auditor that sits across the main architecture's EXTRACT and ANALYZE stages, with a single unifying premise: all three target biases are the SAME defect wearing three hats — CORRELATED ERROR. Selection/omission, consensus/conformity, and training/prior bias all reduce to \"an 'independent' critic that shares a base model shares the blind spot.\" That single root cause licenses one architectural rule applied everywhere: the PRIMARY adversary for every bias is NON-LLM (a recall baseline, a provenance/diffusion graph, a span-existence validator); cross-family LLMs are admitted ONLY at the expensive tier, and an LLM never judges its own family's output (self-preference is correlated error relabeled). This is why naive same-family debate is rejected as the spine — it is weak on omission (both debaters share the upstream candidate set, arguing what is PRESENT, never ABSENT), harmful on conformity (shared priors manufacture false agreement), and useless on prior-knowledge bias (shared parametric prior = shared blind spot). Debate is demoted to a gated, cross-family, dispersion-PRESERVING add-on for contested high-salience items only.\\n\\nThe layer is built as a FUNNEL, not three parallel cost-cascades: (1) THREE cheap, always-on non-LLM structural detectors, one per bias, each anchored to a specific point in extract->analyze — a grounding/span detector at EXTRACT (prior bias), a recall-coverage detector at SELECTION/ranking (omission), and an effective-independent-source + dissent-retention detector at CORROBORATION/aggregation (conformity); (2) these feed ONE consolidated escalation gate that flags an item as contested when any detector trips on a high-salience entity (ungrounded assertion, RBO/recall divergence, a dropped high-trust node, or an orphaned credible dissent cluster); (3) the gate fires ONE expensive cross-family/non-LLM tier (cross-family NLI, entity-swap probe, what's-missing critic over the non-LLM set-difference, coordinated-cluster detection, divergence summarization, optional cross-family debate); (4) all of it drains into ONE dispersion-preserving presentation surface where every check's output is a FLAG the human sees, never an auto-resolution. The escalation gate is treated as a potential collapse point itself: items the gate suppresses (below salience) are surfaced as their own low-confidence flag rather than dropped silently, so the gate cannot quietly re-bury dissent before the expensive tier ever sees it. The layer never decides; it exposes origin-vs-amplification, effective-vs-raw corroboration, the full minority distribution, estimated omitted-mass, and parametric-suspicion flags — \"don't collapse the distribution; show it.\"",
+  "pipeline": [
+    {
+      "stage": "S0 — Grounding/span detector at EXTRACT (closed-book extraction + span-existence validation)",
+      "doesWhat": "Forbids parametric assertion: every node/edge/attribute the LLM emits must carry a source-span offset + timestamp, and a zero-LLM validator asserts the offset resolves to a real substring in the span the LLM saw. A node with no entailing span is mechanically tagged 'ungrounded / parametric-suspected' instead of being trusted.",
+      "biasTargeted": "training/prior-knowledge (the model asserting from frozen parametric memory instead of the crawled text)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S1 — Cutoff-leakage detector at EXTRACT (NER set-difference vs span union)",
+      "doesWhat": "Every salient token/number/date/triple must trace to the span union expanded by the entity-resolution alias whitelist; anything not present is quarantined as a candidate cutoff-leak (stale rating, dissolved partnership, fame-projected attribute). Pairs with a synthetic injection harness (feed spans where a stale fact is the parametric default and a known fact is omitted) to measure direct cutoff-leakage rate.",
+      "biasTargeted": "training/prior-knowledge (stale-view injection / knowledge-cutoff leakage)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S2 — Extraction recall baseline at SELECTION (recall-at-span vs NER+gazetteer+GDELT+event-lexicon)",
+      "doesWhat": "Enumerates candidate entities/events exhaustively with cheap non-LLM extractors on the same cleaned span the LLM saw (Kiwi/MeCab-ko NER + time-scoped ticker/cashtag/slang gazetteer + GDELT pre-extracted tags + event-trigger lexicon) = set C. LLM entities = E. recall-at-span = |E∩C|/|C|; C minus E is surfaced as omission candidates, never auto-merged. Checkpoint 1: did the LLM emit every entity/event that was in the text?",
+      "biasTargeted": "selection/omission (extraction-stage recall failure)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S3 — Ranking coverage at ANALYZE (RBO + recall-at-k of LLM-important vs credibility-weighted PPR/corroboration/independence-weighted burst)",
+      "doesWhat": "Builds the structural-importance ranking S from the analyze layer (credibility-weighted Personalized-PageRank + TrustRank, independence-aware truth-discovery corroboration, Kleinberg burst MULTIPLIED by effective-independent-source count so pumps don't read as novel) and compares it to the LLM's important set L via Rank-Biased Overlap (top-weighted, non-conjoint) + recall-at-k. S minus L = omission candidates surfaced to the human; L minus S = either superior recall or hallucination, routed to S0/S1 grounding. Checkpoint 2: does the LLM rank what is structurally important? Computed as-of (T_know, T_valid), no lookahead.",
+      "biasTargeted": "selection/omission (ranking-stage suppression of high-centrality/high-novelty tail items)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S4 — Provenance/echo graph at CORROBORATION (D1: origin-vs-amplifier root tracing)",
+      "doesWhat": "Per canonicalized claim cluster, reconstructs a diffusion arborescence rooted at the earliest independent assertion using near-duplicate/paraphrase similarity + strict temporal precedence (you cannot copy from the future, enforced by bitemporal knowledge_time) + quote/link structure, with Jordan-center/rumor-centrality as a structural cross-check when timestamps are quantized. A claim asserted 200 times that traces to one root counts as one originating voice + amplification. Separates 'echoing a Tier-1 filing' (legitimate primary root) from 'colluding' (anonymous community root).",
+      "biasTargeted": "consensus/conformity (raw mention count masquerading as independent corroboration)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S5 — Effective-independent corroboration at AGGREGATION (D3: copy-dependency + noisy-OR over roots)",
+      "doesWhat": "Replaces raw mention/vote count with an effective-independent count feeding the existing credibility-weighted PPR edge weights and truth-discovery layer. Combines three independence discounts multiplicatively: D1 amplifiers collapse to root, coordinated clusters collapse to one effective source, and copy-dependency groups (detected from SHARED IDIOSYNCRATIC ERRORS, paraphrase-invariant) aggregate at group level — which cleanly separates many users independently quoting the SAME DART filing (shared truth, high effective count) from colluders sharing a falsehood (one effective source). Output: 'corroborated by K effective-independent of M raw,' bitemporal as-of T, never directional.",
+      "biasTargeted": "consensus/conformity (echo/copy-dependency inflating false consensus)",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S6 — Dissent-retention schema at AGGREGATION (D4 storage: minority views as first-class nodes + divergence-coverage assertion)",
+      "doesWhat": "Generalizes the existing parallel-competing-edge (rumor->denial->confirmation) model so any minority claim contradicting consensus is retained as its own node with full provenance and a dispersion signature {consensus_position, effective-independent support per competing position, minority_share, early-independent-root vs coordinated-cluster}. A non-LLM divergence-coverage test asserts every stored competing position appears in the surfaced output — mechanically forbidding collapse to a single consensus. Cheap data-model guarantee, not an LLM judgment.",
+      "biasTargeted": "consensus/conformity (lossy summarization burying dissent) — and the omission seam for present-but-outvoted views",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S7 — Consolidated escalation gate (single trigger, NOT three parallel cascades)",
+      "doesWhat": "One gate that flags an item as contested-high-salience when ANY cheap detector trips on a salient entity: ungrounded/parametric-suspected on a high-salience node (S0/S1), RBO/recall-at-k divergence or a dropped high-trust node (S2/S3), or an orphaned credible dissent cluster / large raw-vs-effective gap on a salient claim (S4/S5/S6). CRITICAL: items the gate suppresses below the salience threshold are surfaced as their OWN low-confidence flag, never dropped silently, so the gate cannot re-collapse dissent before the expensive tier runs.",
+      "biasTargeted": "all three (the cost-cascade consolidation point) plus the gate's own re-collapse risk",
+      "tier": "cheap-on-everything"
+    },
+    {
+      "stage": "S8 — Cross-family grounding verification (NLI entailment + entity-swap counterfactual probe)",
+      "doesWhat": "On gated salient edges only: a frozen cross-family NLI checker (reuse the doc's DeBERTa, reframed as an independent verifier from a different corpus) confirms the cited span entails the asserted attribute; and an entity-swap probe re-runs extraction with the entity name masked/swapped to a low-fame ticker, holding surrounding words fixed — if attributes/sentiment/salience change in a way that tracks the original name's real-world fame, the output was responding to the NAME (parametric), not the TEXT.",
+      "biasTargeted": "training/prior-knowledge (span non-entailment + fame-projected salience)",
+      "tier": "expensive-on-salient/contested"
+    },
+    {
+      "stage": "S9 — What's-missing critic over the non-LLM set-difference (the diff IS the adversary)",
+      "doesWhat": "On gated clusters only: an LLM (cross-family) is HANDED the already-computed structural set-difference (S minus L, or C minus E) — never the filtered output — and only narrates the fixed, pre-computed omission list for the human with its structural signals. Because the omission list is frozen before the LLM runs, the LLM cannot quietly re-omit. A critic that sees only the filtered output is structurally incapable of naming an omission (the exact failure of debate), so this is enforced as structural-diff input.",
+      "biasTargeted": "selection/omission (the dedicated residual critic, made valid by handing it R explicitly)",
+      "tier": "expensive-on-salient/contested"
+    },
+    {
+      "stage": "S10 — Coordinated-cluster detection (D2: temporal synchrony + behavioral co-action + price/volume cross-check)",
+      "doesWhat": "On high-salience contested community items only (the ONE expensive consensus check): builds a user co-action/multiplex network and detects dense coordinated communities from SYNCHRONIZED ACTION (near-simultaneous posting, repeated co-occurrence across tickers, identical cadence) rather than shared wording — so it survives LLM paraphrase that defeats text-dedup — cross-validated against the price/volume series (synchronized chatter time-locked to a volume spike on a thin name = pump signature). A detected cluster collapses to one effective source for S5; Tier-1 structured sources skip this entirely.",
+      "biasTargeted": "consensus/conformity (paraphrase-robust coordinated inauthentic amplification)",
+      "tier": "expensive-on-salient/contested"
+    },
+    {
+      "stage": "S11 — Divergence summarization + optional cross-family dispersion-preserving debate",
+      "doesWhat": "On gated clusters only: constrains the GraphRAG map-reduce summarizer to be a DIVERGENCE summarizer (summarize each competing position separately so 90%-one-way input cannot erase the 10%, enforced by the S6 coverage test). Optional cross-FAMILY debate or a non-LLM 'what contradicts this?' recall critic articulates the strongest minority case — gated, cross-provider, anti-sycophancy (explicit devil's-advocate roles, confidence-weighted not majority voting), and configured to CHARACTERIZE disagreement for the human, never to collapse to one consensus answer.",
+      "biasTargeted": "consensus/conformity (strongest-minority articulation) — debate confined here, secondary and cross-family",
+      "tier": "expensive-on-salient/contested"
+    },
+    {
+      "stage": "S12 — Dispersion-preserving presentation surface",
+      "doesWhat": "Drains every check into the human-facing Obsidian entity pages as first-class flags: 'K effective-independent of M raw,' origin-vs-amplification trail, coordination annotation, minority-report section with parallel competing edges intact, per-node 'ungrounded/parametric-suspected/name-sensitive' tags, estimated omitted-mass % + residual-critic flags, and gate-suppressed low-confidence items. No layer emits a directional/bullish call; every output is structure for the human to judge.",
+      "biasTargeted": "all three (the anti-bias payoff: expose the distribution, never collapse it)",
+      "tier": "cheap-on-everything"
+    }
+  ],
+  "tieringTable": [
+    {
+      "check": "Span-existence validation (closed-book grounding)",
+      "appliesTo": "every node/edge/attribute at extract",
+      "mechanism": "statistical (offset-resolves-to-substring, zero LLM)",
+      "approxCost": "~free, one deterministic pass"
+    },
+    {
+      "check": "Cutoff-leakage NER set-difference vs span union",
+      "appliesTo": "every salient token/number/date/triple",
+      "mechanism": "NLP/statistical (NER + set-difference, alias whitelist)",
+      "approxCost": "cheap, one NER pass per doc"
+    },
+    {
+      "check": "As-of-T bitemporal background-KB lookup (cited like a span)",
+      "appliesTo": "every claim needing background context",
+      "mechanism": "statistical (versioned DB query carrying provenance)",
+      "approxCost": "~free, indexed lookup"
+    },
+    {
+      "check": "Extraction recall-at-span (Checkpoint 1)",
+      "appliesTo": "every document/span",
+      "mechanism": "NLP + graph-structural (NER+gazetteer+GDELT+event-lexicon set-union/difference vs LLM entities)",
+      "approxCost": "cheap, reuses ingest-stage extractors"
+    },
+    {
+      "check": "Ranking-coverage RBO + recall-at-k (Checkpoint 2)",
+      "appliesTo": "every ranked cluster/community",
+      "mechanism": "graph-structural (credibility-weighted PPR/TrustRank + truth-discovery + independence-weighted burst vs LLM rank)",
+      "approxCost": "~0 marginal, reuses analyze layer"
+    },
+    {
+      "check": "D1 provenance/echo root-tracing (origin vs amplifier)",
+      "appliesTo": "every canonicalized claim cluster",
+      "mechanism": "graph-structural + statistical (diffusion arborescence + temporal-precedence invariant + rumor-centrality)",
+      "approxCost": "cheap, graph op over already-stamped data"
+    },
+    {
+      "check": "D3 effective-independent corroboration (copy-dependency + noisy-OR over roots)",
+      "appliesTo": "every claim with multiple asserters",
+      "mechanism": "statistical (Bayesian shared-error copy-detection + latent-group truth-discovery EM)",
+      "approxCost": "cheap, EM over claim×source matrix at this scale"
+    },
+    {
+      "check": "D4 dissent-retention schema + divergence-coverage assertion",
+      "appliesTo": "every claim with a competing position",
+      "mechanism": "graph-structural (first-class node retention + mechanical coverage test, no LLM)",
+      "approxCost": "~free, data-model guarantee"
+    },
+    {
+      "check": "Consolidated escalation gate (incl. surfacing gate-suppressed items)",
+      "appliesTo": "every item (decides what escalates)",
+      "mechanism": "statistical (threshold over the cheap detectors' signals)",
+      "approxCost": "~free, comparison logic"
+    },
+    {
+      "check": "Cross-family NLI entailment verification",
+      "appliesTo": "ONLY gated high-stakes/salient edges",
+      "mechanism": "LLM (frozen cross-family NLI, different corpus = independent prior)",
+      "approxCost": "expensive, gated to a tiny fraction of edges"
+    },
+    {
+      "check": "Entity-swap counterfactual probe (name-sensitivity)",
+      "appliesTo": "ONLY gated high-salience/contested nodes",
+      "mechanism": "LLM re-run + statistical delta (swap probe is structural, not opinion)",
+      "approxCost": "expensive (2x extraction on the node), gated"
+    },
+    {
+      "check": "What's-missing critic over non-LLM set-difference",
+      "appliesTo": "ONLY contested clusters where RBO<threshold or a high-trust node was dropped",
+      "mechanism": "LLM narrator over a fixed non-LLM diff (cross-family; the diff is the adversary)",
+      "approxCost": "expensive, rate-limited by the cheap RBO gate"
+    },
+    {
+      "check": "D2 coordinated-cluster detection (synchrony + co-action + price/volume) — the ONLY expensive consensus check",
+      "appliesTo": "ONLY high-salience contested Tier-2 community items; Tier-1 structured sources skip entirely",
+      "mechanism": "statistical + graph-structural (temporal-synchrony stats, multiplex community detection, external price/volume cross-validation)",
+      "approxCost": "expensive, highest false-positive piece, gated and Phase-2"
+    },
+    {
+      "check": "Divergence summarization + cross-family dispersion-preserving debate",
+      "appliesTo": "ONLY contested high-salience clusters",
+      "mechanism": "LLM (cross-PROVIDER/cross-FAMILY only, anti-sycophancy, confidence-weighted) or non-LLM contradiction-recall critic",
+      "approxCost": "most expensive; secondary add-on, never primary, never same-family"
+    }
+  ],
+  "humanExposure": "Every check terminates in a FLAG the human sees on the Obsidian entity/claim page (line 529 presentation surface), never an auto-resolution — that is the entire anti-bias payoff. Concretely:\\n\\n(1) CORROBORATION as 'K effective-independent of M raw mentions' — the consensus node always shows BOTH numbers side by side (raw M never hidden), so '200 mentions' that trace to one root reads as '1 effective-independent of 200 raw,' exposing manufactured consensus instead of laundering it into confidence. Slope of weight-vs-N_eff (not weight-vs-M) is reported.\\n\\n(2) ORIGIN-VS-AMPLIFICATION trail per claim (D1): the human navigates {origin_source, origin_time, amplifier_count, distinct_independent_roots} and sees whether the root is a Tier-1 filing (legitimate primary echo) or an anonymous community post (collusion).\\n\\n(3) COORDINATION annotation (D2): 'this consensus is N accounts in one coordinated cluster, time-locked to a volume spike' — surfaced, never silently suppressed, so over-aggressive clustering can't erase real grassroots agreement invisibly.\\n\\n(4) MINORITY-REPORT section (D4 + parallel-competing-edge model, line 485): the rumor->denial->confirmation trail and any credible dissenting node are retained as first-class nodes with their own dispersion signature (early-independent-root vs coordinated-cluster), never summarized away; a non-LLM coverage test mechanically guarantees every stored competing position appears in the summary. Divergence summarization shows each competing position separately so 90%-one-way input cannot erase the 10%.\\n\\n(5) PER-NODE provenance flags: 'ungrounded / parametric-suspected / name-sensitive' tags on nodes that failed span-entailment or shifted under the entity-swap probe — the human sees WHICH attributes came from the text vs the model's prior, and the dissenting whistleblower/small-cap node is preserved rather than buried by the 'blue-chip' prior.\\n\\n(6) ESTIMATED OMITTED-MASS % + residual-critic flags: the human sees a continuous coverage number (Good-Turing missing-mass / capture-recapture hidden-count) plus the explicit list of what the ranker dropped (C minus E, S minus L) with structural signals — omission becomes a visible number, not an invisible absence.\\n\\n(7) GATE-SUPPRESSED low-confidence flags: items the escalation gate did NOT escalate are still surfaced as a low-confidence band, so the cost-tiering gate cannot silently re-collapse dissent.\\n\\nEvery surfaced artifact is descriptive (how-corroborated, how-dispersed, how-grounded) and structurally forbidden from directional/bullish language (guardrail, line 505) — the system shows the distribution; the human judges.",
+  "pluggingIntoMainArch": "The layer maps one bias to one point in the existing extract->analyze flow and reuses the credibility/independence machinery already specified in research/01-architecture-workflow-raw.json rather than re-deriving it.\\n\\nAT EXTRACT (training/prior bias): the grounding/span detector hooks into the schema-guided function-calling extractor (layer 'extract', line 538) — it tightens the already-present {source_span, source_id+credibility, event_time, ingest_time} schema into a HARD span-offset requirement, and reuses the local DeBERTa NLI checker (line 538, 280) but reframes it as an INDEPENDENT cross-family verifier on gated edges. The cutoff-leakage detector reuses the Kiwi/MeCab-ko NER and the entity-resolution alias whitelist (RESOLVE layer / time-scoped gazetteer) for its set-difference.\\n\\nAT SELECTION/RANKING (omission): the recall baseline reuses the ingest-stage cheap extractors (NER, gazetteer, GDELT tags from the Tier-1 spine) for set C; the ranking-coverage check reuses the analyze-layer credibility-weighted Personalized-PageRank + TrustRank (lines 341, 494), truth-discovery corroboration (line 501), and Kleinberg burst — comparing them to the GraphRAG map-reduce 'important set' (line 395). It does NOT rebuild centrality; it consumes it.\\n\\nAT CORROBORATION/AGGREGATION (conformity): D1/D2/D3 are UPGRADES to the shared source-independence machinery the main doc's own attack section flagged as under-specified (lines 647, 662, 520) — they extend MinHash/BGE-M3 dedup (line 283) and the CIB/pump collapse-to-one-effective-source (line 502) from TEXT-similarity to ACTION-similarity (D2 synchrony) and SHARED-ERROR copy-dependency (D3), so paraphrased pumps no longer escape. The effective-independent count feeds directly into the existing PPR edge weights and truth-discovery layer. D4 generalizes the existing parallel-competing-edge rumor->denial->confirmation model (line 485) into a dissent-retention schema, and constrains the existing GraphRAG summarizer (line 395, flagged at line 399 for 'lossy aggregation hides dissent') into a divergence summarizer.\\n\\nThe bitemporal store (event_time + knowledge_time, lines 481-482) is the shared invariant under everything: every check computes as-of-T (knowledge_time <= T), honoring the doc's deepest insight that credibility is itself bitemporal (line 503/505) — no lookahead leaks through the integrity channel. The layer references the credibility/independence/CIB math; it does not re-derive it.",
+  "tradeoffs": [
+    "Claim-canonicalization is the load-bearing dependency for D3/D4: if KR+EN claims (실적 서프라이즈 = earnings beat) don't normalize to comparable objects, effective-independent counts and dissent dispersion are computed over incommensurable units and TRUE-over-LOUD degrades to noise. Mitigation (per the main doc's own fix): run truth-discovery WITHIN a language first; treat cross-lingual corroboration as a separate lower-confidence signal that never silently inflates counts.",
+    "INGESTION-OMISSION BLIND SPOT (a hard scope boundary): omission is measurable only relative to the CRAWLED corpus — the recall baseline cannot detect what was never ingested (the platform not watched, the excluded Reddit, the uncaptured Telegram). 'Omission is measurable' is TRUE for extraction/structuring, FALSE for ingestion. The only proxy is a separate source-type diversity count, never conflated with the structural recall number.",
+    "Default-low-independence (D2/D3) is two-sided: safe against LOUD pumps but it can SUPPRESS legitimate grassroots corroboration and bury a real emerging consensus — itself a consensus-suppressing bias in the opposite direction. Mitigation: measure the suppression rate, always keep raw M visible alongside effective K, never delete (only down-weight-and-annotate).",
+    "The escalation gate / salience threshold is a tuning liability: it is the single consolidation point of the whole funnel, and a mis-tuned gate can silently re-collapse dissent before the expensive tier ever sees it — defeating the layer. Mitigated by surfacing gate-suppressed items as their own low-confidence flag, but the gate remains an auditable seam, not a solved problem.",
+    "Entity-resolution quality caps everything upstream: if 삼성전자 != Samsung Electronics under-merges, claims don't cluster, diffusion trees fragment, and effective-independent counts are computed over a shattered graph. Source-independence quality is bounded by resolution quality.",
+    "Copy-detection has a known blind spot: a copier that copies from a GOOD source leaves no shared idiosyncratic error (Dong et al. VLDB 2009), so effective-independent count is a LOWER bound on dependence / UPPER bound on independence. D1 root-tracing and D2 synchrony are the topological/timing backstop, but a careful single paraphrasing copier of a true filing can still inflate apparent corroboration — keep raw M visible.",
+    "The cross-family debate add-on is itself a risk surface: if it ever defaults to same-family models it reintroduces the manufactured-consensus failure and self-preference the structural layer exists to prevent. It must be hard-wired cross-provider, gated to contested high-salience only, anti-sycophancy (confidence-weighted, devil's-advocate roles), and never promoted to primary.",
+    "Grounding gives faithfulness to SOURCE, not truth: closed-book extraction proves a claim is in the text, not that the text is correct — source error is the credibility layer's job, and forced abstention lowers recall, so quarantine/abstain rates must be tracked as drift signals.",
+    "Cross-family NLI and Korean NER are weaker in Korean and need per-language calibration; a weak gazetteer understates the recall baseline C and HIDES omission, requiring a hand-labeled KR+EN gold set (B-cubed/pairwise P/R) with abstain-rate and recall-spike monitoring."
+  ],
+  "openQuestions": [
+    "Does the escalation gate become the new collapse point? It is the single funnel chokepoint deciding what is 'contested.' Surfacing gate-suppressed items as low-confidence flags is the designed mitigation, but the threshold's false-negative rate (dissent suppressed below salience) needs a continuous audit metric — what is the acceptable suppression rate, and how is it tuned without an oracle?",
+    "What is the right materiality/salience threshold for tail-recall pass/fail and for escalation, given only 1-2 consumers? Too tight re-collapses dissent; too loose blows the cost cascade by escalating everything. This is empirical and needs the planted-disclosure audit + retrospective price-move regression to calibrate.",
+    "How is cross-lingual corroboration scored without silently inflating effective-independent counts? The within-language-first rule is decided, but the confidence discount on the cross-lingual signal is unspecified and load-bearing for KR+EN claims.",
+    "How fine can knowledge_time precedence be trusted given crawl-cadence quantization? D1 origin-ordering and any lead-lag must never be asserted finer than the crawl interval, but the exact fallback to rumor-centrality when timestamps tie needs a concrete tie-break rule.",
+    "Can the entity-swap counterfactual probe be made cheap enough to run on a wider band than just gated nodes, or does its 2x-extraction cost permanently confine it to the salient tier? A cheaper structural proxy for name-sensitivity (e.g., embedding-distance under name masking) is worth investigating.",
+    "What is the guardrail against the divergence summarizer over-proliferating minority nodes for 1-2 human consumers? A salience-gated 'current consensus + live dissent' materialized view is proposed, but the archive-vs-surface cutoff is itself a dissent-collapse risk that needs an audited policy.",
+    "Is GDELT's EN-bias acceptable as a second uncorrelated recall extractor for the KR stream, or does it systematically understate KR-side omission and create a false sense of coverage on Korean small-caps?"
+  ]
+}

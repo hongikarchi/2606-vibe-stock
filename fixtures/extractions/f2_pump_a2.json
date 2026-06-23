@@ -1,0 +1,8 @@
+{
+  "claims": [
+    {"subject_surface": "테마주Z", "relation": "sentiment", "object_text": "",
+     "claim_key": "themez_pump", "stance": "bullish",
+     "source_span": "테마주Z 곧 상한가 간다", "span_start": 0, "span_end": 12}
+  ],
+  "elevated_entities": ["테마주Z"]
+}

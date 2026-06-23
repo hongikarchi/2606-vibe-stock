@@ -1,0 +1,5 @@
+{
+  "_comment": "SKEWED: the biased extractor DROPS the whistleblower's 중소제약/분식회계 claim entirely. The non-LLM omission baseline (gazetteer 중소제약 + event-triggers 분식/회계/제보) recovers it.",
+  "claims": [],
+  "elevated_entities": []
+}

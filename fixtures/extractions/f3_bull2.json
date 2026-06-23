@@ -1,0 +1,8 @@
+{
+  "claims": [
+    {"subject_surface": "중소제약", "relation": "sentiment", "object_text": "",
+     "claim_key": "midcap_bull", "stance": "bullish",
+     "source_span": "중소제약 사상최대 실적 기대 강세 지속", "span_start": 0, "span_end": 20}
+  ],
+  "elevated_entities": ["중소제약"]
+}

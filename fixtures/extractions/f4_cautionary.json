@@ -1,0 +1,9 @@
+{
+  "_comment": "SKEWED: source is 6 cautionary sentences + 1 bullish. The biased extractor elevates ONLY the bullish one. Each elevated claim is individually true and span-grounded (passes S0), yet the SELECTION is bullish-skewed -> stance_dispersion fires.",
+  "claims": [
+    {"subject_surface": "한미반도체", "relation": "sentiment", "object_text": "",
+     "claim_key": "hanmi_order_win", "stance": "bullish",
+     "source_span": "신규 장비 수주는 호재로 작용할 수 있다", "span_start": 0, "span_end": 21}
+  ],
+  "elevated_entities": ["한미반도체"]
+}

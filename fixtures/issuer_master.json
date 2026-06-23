@@ -1,0 +1,48 @@
+{
+  "issuers": [
+    {"issuer_id": "ISS_SEC",   "name": "삼성전자",       "listing_status": "listed",   "status_valid_from": "1975-06-11T00:00:00", "status_valid_to": null,                    "knowledge_time": "1975-06-11T00:00:00"},
+    {"issuer_id": "ISS_SDI",   "name": "삼성SDI",        "listing_status": "listed",   "status_valid_from": "1979-02-27T00:00:00", "status_valid_to": null,                    "knowledge_time": "1979-02-27T00:00:00"},
+    {"issuer_id": "ISS_SKH",   "name": "SK하이닉스",      "listing_status": "listed",   "status_valid_from": "1996-12-26T00:00:00", "status_valid_to": null,                    "knowledge_time": "1996-12-26T00:00:00"},
+    {"issuer_id": "ISS_HANMI", "name": "한미반도체",      "listing_status": "listed",   "status_valid_from": "2005-07-19T00:00:00", "status_valid_to": null,                    "knowledge_time": "2005-07-19T00:00:00"},
+    {"issuer_id": "ISS_MIDCAP","name": "중소제약",        "listing_status": "listed",   "status_valid_from": "2011-04-01T00:00:00", "status_valid_to": null,                    "knowledge_time": "2011-04-01T00:00:00"},
+    {"issuer_id": "ISS_THEMEZ","name": "테마주Z",         "listing_status": "listed",   "status_valid_from": "2020-09-01T00:00:00", "status_valid_to": null,                    "knowledge_time": "2020-09-01T00:00:00"},
+    {"issuer_id": "ISS_DELIST","name": "퇴출기업X",       "listing_status": "delisted", "status_valid_from": "2015-03-02T00:00:00", "status_valid_to": "2023-06-30T00:00:00",   "knowledge_time": "2015-03-02T00:00:00"},
+    {"issuer_id": "ISS_VIVENDI","name": "Vivendi",        "listing_status": "listed",   "status_valid_from": "2000-01-01T00:00:00", "status_valid_to": null,                    "knowledge_time": "2000-01-01T00:00:00"},
+    {"issuer_id": "ISS_VISA",   "name": "Visa",           "listing_status": "listed",   "status_valid_from": "2008-03-19T00:00:00", "status_valid_to": null,                    "knowledge_time": "2008-03-19T00:00:00"}
+  ],
+  "securities": [
+    {"security_id": "KR7005930003", "issuer_id": "ISS_SEC",    "share_class": "common"},
+    {"security_id": "KR7005931001", "issuer_id": "ISS_SEC",    "share_class": "preferred"},
+    {"security_id": "KR7006400006", "issuer_id": "ISS_SDI",    "share_class": "common"},
+    {"security_id": "KR7000660001", "issuer_id": "ISS_SKH",    "share_class": "common"},
+    {"security_id": "KR7042700005", "issuer_id": "ISS_HANMI",  "share_class": "common"},
+    {"security_id": "KR7099999999", "issuer_id": "ISS_MIDCAP", "share_class": "common"},
+    {"security_id": "KR7088888888", "issuer_id": "ISS_THEMEZ", "share_class": "common"}
+  ],
+  "listings": [
+    {"listing_id": "KRX_005930", "security_id": "KR7005930003", "ticker": "005930", "venue": "KRX"},
+    {"listing_id": "KRX_005935", "security_id": "KR7005931001", "ticker": "005935", "venue": "KRX"},
+    {"listing_id": "KRX_006400", "security_id": "KR7006400006", "ticker": "006400", "venue": "KRX"},
+    {"listing_id": "KRX_000660", "security_id": "KR7000660001", "ticker": "000660", "venue": "KRX"},
+    {"listing_id": "KRX_042700", "security_id": "KR7042700005", "ticker": "042700", "venue": "KRX"}
+  ],
+  "aliases": [
+    {"surface_form": "삼성전자",            "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_SEC",    "valid_from": "1975-06-11T00:00:00", "valid_to": null},
+    {"surface_form": "삼전",               "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_SEC",    "valid_from": "1975-06-11T00:00:00", "valid_to": null},
+    {"surface_form": "Samsung Electronics","lang": "en", "target_kind": "issuer",   "target_id": "ISS_SEC",    "valid_from": "1975-06-11T00:00:00", "valid_to": null},
+    {"surface_form": "005930",            "lang": "en", "target_kind": "security", "target_id": "KR7005930003","valid_from": "1975-06-11T00:00:00", "valid_to": null},
+    {"surface_form": "삼성전자우",          "lang": "ko", "target_kind": "security", "target_id": "KR7005931001","valid_from": "1989-01-01T00:00:00", "valid_to": null},
+    {"surface_form": "005935",            "lang": "en", "target_kind": "security", "target_id": "KR7005931001","valid_from": "1989-01-01T00:00:00", "valid_to": null},
+    {"surface_form": "삼성SDI",            "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_SDI",    "valid_from": "1979-02-27T00:00:00", "valid_to": null},
+    {"surface_form": "SK하이닉스",          "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_SKH",    "valid_from": "1996-12-26T00:00:00", "valid_to": null},
+    {"surface_form": "하닉",               "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_SKH",    "valid_from": "1996-12-26T00:00:00", "valid_to": null},
+    {"surface_form": "한미반도체",          "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_HANMI",  "valid_from": "2005-07-19T00:00:00", "valid_to": null},
+    {"surface_form": "중소제약",            "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_MIDCAP", "valid_from": "2011-04-01T00:00:00", "valid_to": null},
+    {"surface_form": "테마주Z",            "lang": "ko", "target_kind": "issuer",   "target_id": "ISS_THEMEZ", "valid_from": "2020-09-01T00:00:00", "valid_to": null},
+    {"surface_form": "$V",                "lang": "en", "target_kind": "issuer",   "target_id": "ISS_VIVENDI","valid_from": "2002-01-01T00:00:00", "valid_to": "2008-09-01T00:00:00"},
+    {"surface_form": "$V",                "lang": "en", "target_kind": "issuer",   "target_id": "ISS_VISA",   "valid_from": "2008-09-01T00:00:00", "valid_to": null}
+  ],
+  "must_not_link": [
+    ["ISS_SEC", "ISS_SDI"]
+  ]
+}

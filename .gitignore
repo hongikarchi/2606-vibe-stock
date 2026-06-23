@@ -1,0 +1,17 @@
+# generated artifacts
+out/
+data/
+lib/
+
+# project snapshot dirs (local rollback copies)
+*-snapshot-*/
+
+# secrets (API keys)
+.env
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

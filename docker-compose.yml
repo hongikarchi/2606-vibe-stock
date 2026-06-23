@@ -1,0 +1,20 @@
+# Neo4j — local storage spine for the stock knowledge graph.
+# Browser at http://localhost:7474 (login neo4j / skgpassword), Bolt on 7687.
+# NEO4J_AUTH only applies on FIRST volume init; to change the password later,
+# `docker compose down -v` to drop the volume, then up again.
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: skg-neo4j
+    restart: unless-stopped   # survive host/Docker reboot so localhost:7474 is up when the user returns
+    ports:
+      - "7474:7474"   # HTTP Browser
+      - "7687:7687"   # Bolt (driver)
+    environment:
+      - NEO4J_AUTH=neo4j/skgpassword
+      - NEO4J_server_memory_pagecache_size=512M
+    volumes:
+      - skg_neo4j_data:/data
+
+volumes:
+  skg_neo4j_data:

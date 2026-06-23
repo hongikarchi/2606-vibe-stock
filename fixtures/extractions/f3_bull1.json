@@ -1,0 +1,8 @@
+{
+  "claims": [
+    {"subject_surface": "중소제약", "relation": "sentiment", "object_text": "",
+     "claim_key": "midcap_bull", "stance": "bullish",
+     "source_span": "중소제약 신약 기대감에 급등 호재 가득", "span_start": 0, "span_end": 21}
+  ],
+  "elevated_entities": ["중소제약"]
+}

@@ -1,0 +1,8 @@
+[
+  {"doc_id": "f1_ko_filing", "source_id": "dart", "lang": "ko", "event_time": "2024-02-01T08:00:00", "ingest_time": "2024-02-01T08:10:00",
+   "text": "삼성전자가 신규 HBM 라인 증설을 공시했다. 삼전 우선주(삼성전자우)도 거래량이 늘었다."},
+  {"doc_id": "f1_en_news",   "source_id": "yonhap", "lang": "en", "event_time": "2024-02-01T10:00:00", "ingest_time": "2024-02-01T10:20:00",
+   "text": "Samsung Electronics expands HBM capacity. Analysts note Samsung remains a key supplier; 005930 rose."},
+  {"doc_id": "f1_ambiguous", "source_id": "community_01", "lang": "en", "event_time": "2024-02-01T11:00:00", "ingest_time": "2024-02-01T11:30:00",
+   "text": "Samsung is everywhere these days — phones, batteries, chips."}
+]

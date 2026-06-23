@@ -1,0 +1,4 @@
+# Minimal — the dependency list IS the scope decision (clustering/embeddings/LLM deferred).
+networkx>=3.0
+rapidfuzz>=3.0
+scipy>=1.10   # networkx.pagerank uses the scipy sparse solver
