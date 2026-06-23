@@ -37,6 +37,25 @@ def _bar(pct: float, color: str, width: int = 200) -> str:
             f'background:{color};border-radius:4px"></span></span>')
 
 
+def _sparkline(series_json: str, w: int = 160, h: int = 30) -> str:
+    """Inline SVG trend line from a JSON close array (answers '현재값만 있어 해석 어렵다' #6:
+    shows the SHAPE of recent movement, not just the latest number). Green if up, red if down."""
+    import json
+    try:
+        vals = [float(x) for x in json.loads(series_json or "[]")]
+    except Exception:  # noqa: BLE001
+        vals = []
+    if len(vals) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    rng = (hi - lo) or 1.0
+    n = len(vals)
+    pts = " ".join(f"{i / (n - 1) * w:.1f},{h - (v - lo) / rng * h:.1f}" for i, v in enumerate(vals))
+    color = "#6BCB77" if vals[-1] >= vals[0] else "#FF6B6B"
+    return (f'<svg width="{w}" height="{h}" style="vertical-align:middle">'
+            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="1.5"/></svg>')
+
+
 def write_dashboard(repo, out_path: Path, as_of: str) -> dict:
     # --- market breadth (52w position) per market ---
     def breadth(prefix):
@@ -52,10 +71,11 @@ def write_dashboard(repo, out_path: Path, as_of: str) -> dict:
                 "med": sorted(vals)[n // 2]}
     us, kr = breadth("CIK"), breadth("DART")
 
-    # --- commodity / macro prices ---
+    # --- commodity / macro prices + trend (recent_closes_json already on the node) ---
     macros = repo._read(
         "MATCH (m:MacroIndicator) RETURN m.name AS name, m.last_close AS px, "
-        "m.pct_change_window AS chg, m.category AS cat ORDER BY m.category, m.name")
+        "m.pct_change_window AS chg, m.category AS cat, m.recent_closes_json AS series "
+        "ORDER BY m.category, m.name")
 
     # --- hottest / coldest sectors by avg 52w position (KR KSIC + US SIC) ---
     sectors_raw = repo._read(
@@ -95,13 +115,15 @@ def write_dashboard(repo, out_path: Path, as_of: str) -> dict:
                  f"고점근처 <b class=pos>{b['hi']:.0f}%</b> {_bar(b['hi'],'#6BCB77')} &nbsp; "
                  f"저점근처 <b class=neg>{b['lo']:.0f}%</b> &nbsp; 중앙값 {b['med']:.0f}%</div>")
 
-    # commodities
-    h.append("<h2>원자재 · 메모리 가격 (3개월 변화)</h2><table>")
+    # commodities + macro: current value + 3mo change + TREND sparkline (#6: 흐름이 보이게)
+    h.append("<h2>원자재 · 지표 · 메모리 — 현재값 + 최근 추세</h2>"
+             "<p class=muted>숫자만이 아니라 선 모양으로 '어느 방향으로 움직이는 중'인지 보세요.</p><table>")
     for m in macros:
         chg = m["chg"] or 0
         cls = "pos" if chg >= 0 else "neg"
+        spark = _sparkline(m.get("series"))
         h.append(f"<tr><td class=lbl>{m['name']}</td><td>{m['px']}</td>"
-                 f"<td class={cls}>{chg:+.1%}</td></tr>")
+                 f"<td class={cls}>{chg:+.1%}</td><td>{spark}</td></tr>")
     h.append("</table>")
 
     # sectors
