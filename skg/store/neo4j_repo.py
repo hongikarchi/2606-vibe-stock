@@ -35,6 +35,8 @@ _CONSTRAINTS = [
     ("sector_id", "Sector", "sector_id"),
     ("indicator_id", "MacroIndicator", "indicator_id"),
     ("series_id", "PriceSeries", "series_id"),
+    ("theme_id", "Theme", "theme_id"),
+    ("term", "Term", "term"),
 ]
 
 
