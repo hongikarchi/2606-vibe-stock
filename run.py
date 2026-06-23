@@ -36,7 +36,7 @@ from skg.models import (
 )
 from skg.resolve import Resolver, naive_resolve
 from skg.store import make_repo
-from skg.store.graph_builder import build_credible, build_naive
+from skg.analyze.graph_builder import build_credible, build_naive
 
 
 def _load_issuer_master(path: Path):

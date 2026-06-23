@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from rapidfuzz import fuzz, process
 
 import config as cfg
-from .store.sqlite_repo import SqliteRepository
+from .store.repository import Repository
 
 
 @dataclass
@@ -36,7 +36,7 @@ def _norm(s: str) -> str:
 class Resolver:
     """Resolves surface forms against the issuer master held in the repository."""
 
-    def __init__(self, repo: SqliteRepository, as_of: str,
+    def __init__(self, repo: Repository, as_of: str,
                  must_not_link: list[tuple[str, str]] | None = None):
         self.repo = repo
         self.as_of = as_of

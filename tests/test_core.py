@@ -30,7 +30,7 @@ def _claim(cid, src, cred, subj, obj="", dup=None, stance="neutral",
 # --------------------------------------------------------------- PPR: TRUE over LOUD
 def test_credible_ppr_demotes_pump_below_filing():
     """Raw PageRank ranks a pump clique #1; credibility-weighted PPR must demote it."""
-    from skg.store.graph_builder import build_credible, build_naive
+    from skg.analyze.graph_builder import build_credible, build_naive
     sources = {
         "dart": Source("dart", "DART", "filing", "filing", 0.92, True),
         "anon": Source("anon", "anon", "anon", "anon", 0.10, False),
