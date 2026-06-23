@@ -69,6 +69,10 @@ Sector, MacroIndicator, PriceSeries, Theme, Term, **ThemeDay(신규)**.
 **멱등성:** 모든 write는 MERGE(CREATE 금지). 뉴스 doc_id는 `hashlib.sha1`(프로세스 무관
 안정 — 이전 `hash()`는 재실행마다 달라져 중복 생성하던 버그였음, 수정됨).
 
+> ⚠️ **정직한 주의:** 현재 테마 수치(ThemeDay 카운트·감쇠 열기·추세차트의 "6/22에 245건"
+> 등)는 옛 `hash()` 버그로 생긴 **기존 중복 뉴스(비율 ~1.54) 위에서 계산됨.** doc_id는
+> fix-forward 완료라 더 나빠지진 않지만, 아래 "깨어서 할 일 ④" 일회성 정리 후에야 정확해짐.
+
 ## 검증
 - `pytest tests/` → 8 pass / 28 skip (conformance는 라이브 Neo4j + `SKG_ALLOW_NEO4J_WIPE=1`일 때만).
 - 4개 HTML 재생성: `pipelines/reanalyze.py`(graph), `pipelines/build_theme_view.py`(themes),
