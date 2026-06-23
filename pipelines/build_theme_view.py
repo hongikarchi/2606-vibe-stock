@@ -89,6 +89,9 @@ def main() -> None:
     node_stance = defaultdict(Counter)
     edge_stance = defaultdict(Counter)
     te_heads = defaultdict(list)       # (theme, entity) -> headlines (drill level 3)
+    # per-day buckets: (theme, day) -> {count, bull, bear, neut}. Persisted as :ThemeDay nodes
+    # (additive temporal layer for decay/trend/accumulation).
+    theme_day = defaultdict(lambda: {"count": 0, "bull": 0, "bear": 0, "neut": 0})
 
     for h, date, ent in items:
         if ent:
@@ -99,11 +102,16 @@ def main() -> None:
         st = lexicon.stance_of(h)
         ch = _clean(h)
         w = _decay_weight(date)   # recent headline ~1.0, old ~0
+        sday = date[:10] if date else ""
         for t in ts:
             freq[t] += 1
             wfreq[t] += w
             node_stance[t][st] += 1
             wstance[t][st] += w
+            if sday:
+                b = theme_day[(t, sday)]
+                b["count"] += 1
+                b["bull" if st == "bullish" else "bear" if st == "bearish" else "neut"] += 1
             if ent:
                 theme_entities[t][ent] += 1
                 if len(te_heads[(t, ent)]) < 30:
@@ -184,6 +192,14 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_render(nodes, edges), encoding="utf-8")
     print(f"[view] -> {out}")
+
+    # persist per-day buckets (:ThemeDay) — additive temporal layer for decay/trend/accumulation
+    if hasattr(repo, "write_theme_days"):
+        day_rows = [{"theme_id": t, "day": d, "count": b["count"],
+                     "w_bull": b["bull"], "w_bear": b["bear"], "w_neut": b["neut"]}
+                    for (t, d), b in theme_day.items()]
+        repo.write_theme_days(day_rows)
+        print(f"[view] persisted {len(day_rows)} :ThemeDay buckets")
     repo.close()
 
 

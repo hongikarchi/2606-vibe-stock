@@ -37,6 +37,7 @@ _CONSTRAINTS = [
     ("series_id", "PriceSeries", "series_id"),
     ("theme_id", "Theme", "theme_id"),
     ("term", "Term", "term"),
+    ("themeday_key", "ThemeDay", "key"),
 ]
 
 
@@ -295,6 +296,32 @@ class Neo4jRepository:
     def clear_terms(self) -> None:
         """Emergent terms are recomputed wholesale each run; drop old ones first."""
         self._write("MATCH (t:Term) DETACH DELETE t")
+
+    def write_theme_days(self, rows: list[dict]) -> None:
+        """:ThemeDay {theme_id, day, count, w_bull, w_bear, w_neut} — per-day theme volume +
+        stance. ADDITIVE layer alongside the aggregate :Theme nodes (never replaces them).
+        This is the storage shape that powers (a) time-decay as a weighted sum over days,
+        (b) temporal trend charts, (c) accumulation — future crawl/websocket data just appends
+        more day-buckets. MERGE on (theme_id, day) so re-runs overwrite that day, not duplicate."""
+        if not rows:
+            return
+        self._write(
+            "UNWIND $rows AS r "
+            "MERGE (d:ThemeDay {key: r.theme_id + '@' + r.day}) "
+            "SET d.theme_id = r.theme_id, d.day = r.day, d.count = r.count, "
+            "    d.w_bull = r.w_bull, d.w_bear = r.w_bear, d.w_neut = r.w_neut "
+            "WITH d, r MATCH (t:Theme {theme_id: r.theme_id}) MERGE (t)-[:ON_DAY]->(d)",
+            rows=rows,
+        )
+
+    def get_theme_days(self, theme_id: str) -> list[dict]:
+        """Per-day series for one theme, oldest->newest (for trend charts)."""
+        recs = self._read(
+            "MATCH (d:ThemeDay {theme_id: $tid}) "
+            "RETURN d.day AS day, d.count AS count, d.w_bull AS w_bull, "
+            "d.w_bear AS w_bear, d.w_neut AS w_neut ORDER BY d.day",
+            tid=theme_id)
+        return [dict(r) for r in recs]
 
     def set_issuer_52w_position(self, positions: dict) -> None:
         """Stamp each issuer with its 52-week position (0-100). Descriptive market-state."""
