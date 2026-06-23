@@ -78,9 +78,14 @@ def _source_id(outlet: str) -> str:
 
 
 def _doc_id(link: str) -> str:
-    """Stable doc_id from the article URL so re-polling never duplicates."""
-    h = abs(hash(link)) % (10 ** 12)
-    return f"news_{h:012d}"
+    """Stable doc_id from the article URL so re-polling never duplicates.
+
+    Uses hashlib (content-stable across processes). Python's builtin hash() is randomized
+    per-process (SipHash), so it gave a DIFFERENT id for the same URL on each run — re-pulls
+    created duplicate Claim/Mention nodes. sha1 is deterministic; idempotency holds."""
+    import hashlib
+    h = hashlib.sha1(link.encode("utf-8")).hexdigest()[:12]
+    return f"news_{h}"
 
 
 class NewsFetcher:
