@@ -35,7 +35,7 @@ from skg.models import (
     Source,
 )
 from skg.resolve import Resolver, naive_resolve
-from skg.store import make_repo
+from skg.database import make_repo
 from skg.analyze.graph_builder import build_credible, build_naive
 
 

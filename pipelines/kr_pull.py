@@ -34,7 +34,7 @@ from skg.models import Claim, Document, Mention, Source
 from skg.sources.dart import DartFetcher
 from skg.sources.market import MarketFetcher
 from skg.sources.news import NewsFetcher
-from skg.store import make_repo
+from skg.database import make_repo
 
 TOP_N = int(os.environ.get("SKG_KR_TOP_N", "300"))
 NEWS_TOP_N = int(os.environ.get("SKG_KR_NEWS_TOP_N", "300"))

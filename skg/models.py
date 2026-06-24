@@ -1,6 +1,6 @@
 """Dataclasses for the pipeline's domain objects.
 
-These mirror the SQLite schema (see store/sqlite_repo.py). Kept as plain dataclasses
+These mirror the SQLite schema (see database/sqlite_repo.py). Kept as plain dataclasses
 so they are trivially serializable and the storage layer stays a thin mapping.
 """
 from __future__ import annotations

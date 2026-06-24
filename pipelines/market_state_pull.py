@@ -24,7 +24,7 @@ except Exception:
 import config as cfg
 from skg.analyze.market_state import (breadth_summary, fetch_52w_position,
                                       fetch_state_indicators)
-from skg.store import make_repo
+from skg.database import make_repo
 
 MAX_ISSUERS = int(os.environ.get("SKG_STATE_MAX", "1200"))
 

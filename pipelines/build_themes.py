@@ -28,7 +28,7 @@ except Exception:
 
 import config as cfg
 from skg.analyze.themes import label_of, themes_in
-from skg.store import make_repo
+from skg.database import make_repo
 
 MIN_COOCCUR = 4   # drop one-off pairs (noise); keep edges seen in >= N headlines
 

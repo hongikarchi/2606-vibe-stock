@@ -25,7 +25,7 @@
 │   ├─ prefilter.py         #   근접중복 클러스터링 (통신사 기사 묶기)
 │   ├─ resolve.py           #   엔티티 해소 (ID앵커 + 퍼지) — Repository ABC에 의존
 │   │
-│   ├─ database/  ◀ 데이터베이스 계층  (현재 폴더명: store/)
+│   ├─ database/  ◀ 데이터베이스 계층
 │   │   ├─ repository.py    #   Repository ABC (백엔드 교체 seam)
 │   │   ├─ sqlite_repo.py   #   SQLite 구현 (데모/conformance 기준)
 │   │   ├─ neo4j_repo.py    #   Neo4j 구현 (프로덕션, 라이브 그래프)
@@ -79,15 +79,17 @@ Sector, MacroIndicator, PriceSeries, Theme, Term, **ThemeDay(신규)**.
   emergent/dashboard는 `skg.export`의 함수.
 - 회귀: `python run.py`(오프라인 SQLite) 정상.
 
-## ⏳ 깨어서 승인 후 할 일 (무인 실행 안 함 — 파괴적/대규모)
-1. **폴더명 정렬**: `skg/store/` → `skg/database/`로 rename (위 다이어그램의 목표명).
-   다수 import 재작성이라 깨어서. *지금은 `store/`가 곧 데이터베이스 계층.*
-2. **export/ 디커플링**: `repo._read(raw Cypher)` → Repository 메서드(`get_issuer_breadth` 등)로.
+## ✅ 완료된 정리 (2026-06-24)
+- 루트 11개 스크립트 → `pipelines/` 8개 + 루트 3개(run/loop_build/config).
+- `skg/store/` → **`skg/database/` rename 완료** (13개 import 전부 수정·검증).
+- 결합 위반: `resolve.py`→`Repository` ABC, `graph_builder.py` `store/`→`analyze/`.
+- 뉴스 doc_id 멱등성 버그 수정, Theme/Term/ThemeDay 제약, per-day 버킷.
+
+## ⏳ 남은 할 일 (파괴적/대규모 — 방향 정하면 진행)
+1. **export/ 디커플링**: `repo._read(raw Cypher)` → Repository 메서드(`get_issuer_breadth` 등)로.
    시각화가 Neo4j에 하드결합돼 있음. 다수 파일.
-3. **보존/가지치기 정책**: Claim/Mention 무한 증가. 옵션(1년 후 prune / 콜드 아카이브 /
-   as_of 스냅샷 압축) — 파괴적이라 설계만, 승인 후 실행.
-4. **기존 뉴스 중복 일회성 정리**: 옛 `hash()` 버그로 생긴 중복(비율 ~1.54). doc_id는
-   fix-forward 완료(신규는 중복 0). 기존 중복은 DETACH DELETE 필요 — 승인 후.
-5. **news_pull/kr_pull 공통 로직 추출**: `_register_news_sources`/claim 빌드 중복 → `skg/sources/news.py`.
-6. **GitHub 푸시**: 로컬 커밋 완료, 원격 푸시는 외부 공개 액션이라 게이트됨 — 승인 후
-   `gh repo create hongikarchi/2606-vibe-stock --private` + push.
+2. **보존/가지치기 정책**: Claim/Mention 무한 증가. 옵션(1년 후 prune / 콜드 아카이브 /
+   as_of 스냅샷 압축) — 파괴적이라 방향 확인 후 실행.
+3. **기존 뉴스 중복 일회성 정리**: 옛 `hash()` 버그로 생긴 중복(비율 ~1.54). doc_id는
+   fix-forward 완료(신규는 중복 0). 기존 중복은 DETACH DELETE 필요 — 방향 확인 후.
+4. **news_pull/kr_pull 공통 로직 추출**: `_register_news_sources`/claim 빌드 중복 → `skg/sources/news.py`.

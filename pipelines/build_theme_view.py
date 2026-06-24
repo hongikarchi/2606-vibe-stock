@@ -32,7 +32,7 @@ except Exception:
 import config as cfg
 from skg.analyze import lexicon
 from skg.analyze.themes import THEMES, label_of, themes_in
-from skg.store import make_repo
+from skg.database import make_repo
 
 MIN_COOCCUR = 4
 MAX_HEADLINES = 8  # per node / per edge kept for the panel

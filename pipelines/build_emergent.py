@@ -26,7 +26,7 @@ except Exception:
 
 import config as cfg
 from skg.analyze.emergent import build_term_network, tokens
-from skg.store import make_repo
+from skg.database import make_repo
 
 
 def _sparkline(counts_by_day: dict) -> str:

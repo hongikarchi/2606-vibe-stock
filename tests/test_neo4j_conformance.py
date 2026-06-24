@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 import config as cfg
 from skg.models import Alias, AnalysisResult, Claim, Issuer, Listing, Mention, Security, Source
-from skg.store.sqlite_repo import SqliteRepository
+from skg.database.sqlite_repo import SqliteRepository
 
 
 # --------------------------------------------------------------- boundary-rich seed
@@ -107,7 +107,7 @@ def neo4j_repo():
         pytest.skip("set SKG_ALLOW_NEO4J_WIPE=1 to run (this test wipes the Neo4j graph)")
     try:
         from neo4j import GraphDatabase
-        from skg.store.neo4j_repo import Neo4jRepository
+        from skg.database.neo4j_repo import Neo4jRepository
         drv = GraphDatabase.driver(cfg.NEO4J_URI, auth=(cfg.NEO4J_USER, cfg.NEO4J_PASSWORD))
         drv.verify_connectivity()
         drv.close()

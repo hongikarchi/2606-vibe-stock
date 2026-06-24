@@ -31,7 +31,7 @@ from skg import prefilter
 from skg.extract.news_rules import extract_from_headline
 from skg.models import Claim, Document, Mention, Source
 from skg.sources.news import MACRO_TOPICS, NewsFetcher
-from skg.store import make_repo
+from skg.database import make_repo
 
 TOP_N = int(__import__("os").environ.get("SKG_NEWS_TOP_N", "500"))
 

@@ -25,7 +25,7 @@ from skg.analyze import pagerank
 from skg.analyze.pagerank import ranked
 from skg.export.force_graph import write_force_graph
 from skg.models import AnalysisResult
-from skg.store import make_repo
+from skg.database import make_repo
 from skg.analyze.graph_builder import build_credible, build_naive
 
 

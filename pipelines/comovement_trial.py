@@ -24,7 +24,7 @@ except Exception:
 import config as cfg
 from skg.models import MacroIndicator, PriceSeries
 from skg.sources.market import MarketFetcher
-from skg.store import make_repo
+from skg.database import make_repo
 
 N_US = int(__import__("os").environ.get("SKG_CM_US", "20"))
 N_KR = int(__import__("os").environ.get("SKG_CM_KR", "20"))

@@ -31,7 +31,7 @@ from skg import ingest, prefilter
 from skg.extract.edgar_rules import LayeredExtractor, RuleBasedEdgarExtractor
 from skg.models import Document
 from skg.sources.edgar import EdgarFetcher
-from skg.store import make_repo
+from skg.database import make_repo
 
 # ---- loop tuning (env-overridable so a full-universe run needs no code edit) ----
 import os

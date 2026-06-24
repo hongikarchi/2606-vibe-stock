@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from rapidfuzz import fuzz, process
 
 import config as cfg
-from .store.repository import Repository
+from .database.repository import Repository
 
 
 @dataclass
