@@ -15,8 +15,10 @@
 │   ├─ market_state_pull.py #   52주 위치(시장폭) + 원자재/메모리 가격
 │   ├─ reanalyze.py         #   라이브 그래프 위에서 랭킹 재계산 + graph.html
 │   ├─ build_themes.py      #   테마 연관망 레이어 (고정 사전)
-│   ├─ build_emergent.py    #   데이터 주도 키워드망 (DF필터+연결중심)
 │   ├─ build_theme_view.py  #   themes.html (의미 요약 + 드릴다운 + 감쇠 + 추세)
+│   ├─ build_emergent.py    #   :Term 키워드망 계산 (DF필터+연결중심)
+│   ├─ build_emergent_view.py #  emergent.html 렌더
+│   ├─ build_dashboard.py   #   dashboard.html 렌더 (시장상태 한 페이지)
 │   └─ comovement_trial.py  #   거시↔주가 동조(상관) 엣지 (실험, 기본 비활성)
 │
 ├─ skg/                     # ▶ 핵심 패키지
@@ -39,7 +41,7 @@
 │   │   pagerank · detectors · lexicon · themes · emergent · market_state · graph_builder
 │   │
 │   └─ export/    ◀ 대시보드 계층 (시각화 산출물)
-│       dashboard · force_graph · theme_graph · emergent_graph · obsidian
+│       dashboard · force_graph · emergent_graph · obsidian
 │
 ├─ data/   (gitignore) EDGAR 코퍼스 37k + 상태 + 세션작성 요약
 ├─ out/    (gitignore) 생성물: dashboard/themes/emergent/graph.html, vault, skg.db
