@@ -109,14 +109,63 @@ def build_emergent_data(repo) -> dict:
 
 # ---------------------------------------------------------------- graph (issuers)
 def build_graph_data(repo, top_n: int = 400) -> dict:
-    """Top-N issuers by PPR + their sectors + macro hubs (the entity graph)."""
+    """Top-N issuers by PPR + sectors + macro hubs, EACH enriched for drill-down:
+    news headlines+stance, 52w position, sector peers, related themes. (company lens,
+    parallel to themes' issue lens — click a company, see its story.)"""
+    from skg.analyze.themes import label_of, themes_in
+    from skg.analyze import lexicon
+
     rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
         "OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
         "RETURN a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
-        "i.issuer_id AS iid, s.name AS sector, s.sic_code AS sic "
+        "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, s.sic_code AS sic "
         "ORDER BY a.rank_credible LIMIT $n", as_of=cfg.AS_OF_NOW, n=top_n)
     issuers = [dict(r) for r in rows]
+    iids = [i["iid"] for i in issuers]
+
+    # per-issuer news headlines (drill-down evidence)
+    news = repo._read(
+        "MATCH (i:Issuer)<-[:ABOUT]-(cl:Claim) WHERE i.issuer_id IN $iids "
+        "AND cl.source_id STARTS WITH 'news::' "
+        "RETURN i.issuer_id AS iid, cl.source_span AS h, cl.event_time AS t", iids=iids)
+    by_issuer = {}
+    for r in news:
+        h = r["h"]
+        if not h:
+            continue
+        st = lexicon.stance_of(h)
+        ch = (h.split(" - ")[0] if " - " in h[-40:] else h).strip()[:110]
+        by_issuer.setdefault(r["iid"], []).append(((r["t"] or "")[:10], ch, st))
+
+    # sector members (peers) — for "same-sector companies"
+    peers = {}
+    for r in repo._read(
+        "MATCH (i:Issuer)-[:IN_SECTOR]->(s:Sector)<-[:IN_SECTOR]-(p:Issuer) "
+        "WHERE i.issuer_id IN $iids AND p.issuer_id <> i.issuer_id "
+        "RETURN i.issuer_id AS iid, collect(DISTINCT p.name)[..6] AS peers", iids=iids):
+        peers[r["iid"]] = r["peers"]
+
+    for i in issuers:
+        hs = by_issuer.get(i["iid"], [])
+        # stance breakdown
+        sc = {"bull": 0, "bear": 0, "neut": 0}
+        themes = {}
+        for _, h, st in hs:
+            sc["bull" if st == "bullish" else "bear" if st == "bearish" else "neut"] += 1
+            for th in themes_in(h):
+                themes[th] = themes.get(th, 0) + 1
+        # top headlines: stance-bearing first, then recent
+        hs_sorted = sorted(hs, reverse=True)
+        stanced = [{"d": d, "t": h, "s": s} for d, h, s in hs_sorted if s != "neutral"][:6]
+        neutral = [{"d": d, "t": h, "s": s} for d, h, s in hs_sorted if s == "neutral"]
+        i["news_count"] = len(hs)
+        i["stance"] = sc
+        i["heads"] = stanced + neutral[: max(0, 6 - len(stanced))]
+        i["themes"] = [{"id": t, "label": label_of(t), "n": n}
+                       for t, n in sorted(themes.items(), key=lambda x: -x[1])[:5]]
+        i["peers"] = peers.get(i["iid"], [])
+
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) OPTIONAL MATCH (cl:Claim)-[:ABOUT]->(m) "
         "RETURN m.indicator_id AS id, m.name AS name, m.category AS cat, count(cl) AS news")]

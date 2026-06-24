@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import ThemesView from "./views/ThemesView.jsx";
 import DashboardView from "./views/DashboardView.jsx";
-import EmergentView from "./views/EmergentView.jsx";
 import GraphView from "./views/GraphView.jsx";
 
+// 키워드망(emergent) tab removed — it answered the same question as 이슈 연관망 (issue
+// associations) but auto-derived & noisier; the curated theme view won. The emergent
+// pipeline (build_emergent.py) is kept as a keyword-discovery builder tool, not a view.
 const TABS = [
   { id: "themes", label: "🧩 이슈 연관망", comp: ThemesView },
   { id: "dashboard", label: "📊 시장 상태", comp: DashboardView },
-  { id: "emergent", label: "🔤 키워드망", comp: EmergentView },
   { id: "graph", label: "🏢 기업 그래프", comp: GraphView },
 ];
 

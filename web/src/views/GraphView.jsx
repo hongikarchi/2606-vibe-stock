@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Network } from "vis-network/standalone";
 
 // US SIC 2-digit division -> color (mirror of the Python _division)
@@ -14,17 +14,36 @@ function divColor(sic) {
   return "#777";
 }
 
+function StanceBar({ stance }) {
+  const tot = (stance.bull + stance.bear + stance.neut) || 1;
+  const pb = Math.round((100 * stance.bull) / tot), pr = Math.round((100 * stance.bear) / tot);
+  const pn = 100 - pb - pr;
+  return (
+    <>
+      <div className="stance">
+        {pb > 0 && <span className="bull" style={{ width: `${pb}%` }}>{pb > 8 ? pb + "%" : ""}</span>}
+        {pr > 0 && <span className="bear" style={{ width: `${pr}%` }}>{pr > 8 ? pr + "%" : ""}</span>}
+        {pn > 0 && <span className="neut" style={{ width: `${pn}%` }}>{pn > 12 ? pn + "%" : ""}</span>}
+      </div>
+      <div className="legend">🟢 긍정 {stance.bull} · 🔴 부정 {stance.bear} · ⚪ 중립 {stance.neut}</div>
+    </>
+  );
+}
+
 export default function GraphView({ useArtifact }) {
   const d = useArtifact("graph");
   const ref = useRef(null);
+  const [sel, setSel] = useState(null); // issuer name
+
+  const byName = d ? Object.fromEntries(d.issuers.map((i) => [i.name, i])) : {};
+
   useEffect(() => {
     if (!d || !ref.current) return;
     const nodes = [], edges = [], sectorsSeen = new Set();
-    const maxppr = Math.max(...d.issuers.map((i) => i.ppr || 0), 0.0001);
     for (const i of d.issuers) {
       const color = divColor(i.sic);
       nodes.push({ id: "I::" + i.name, label: i.name.slice(0, 22), color, value: i.ppr || 0,
-        title: `${i.name}\n업종: ${i.sector || "?"}\nPPR=${(i.ppr || 0).toFixed(4)}`,
+        title: `${i.name}\n업종: ${i.sector || "?"}\n뉴스 ${i.news_count || 0}건`,
         scaling: { min: 8, max: 50 }, font: { size: 13, color: "#ddd" } });
       if (i.sector) {
         const sid = "S::" + i.sector;
@@ -44,15 +63,58 @@ export default function GraphView({ useArtifact }) {
       interaction: { hover: true },
     });
     net.once("stabilizationIterationsDone", () => net.fit({ animation: true }));
+    net.on("click", (p) => {
+      if (p.nodes.length && p.nodes[0].startsWith("I::")) setSel(p.nodes[0].slice(3));
+      else setSel(null);
+    });
     return () => net.destroy();
   }, [d]);
+
   if (!d) return <div className="loading">불러오는 중…</div>;
-  return (
-    <div style={{ height: "100%", position: "relative" }}>
-      <div style={{ position: "absolute", top: 12, left: 16, zIndex: 1, color: "#99a", fontSize: 13, background: "#11161fcc", padding: "8px 12px", borderRadius: 8 }}>
-        상위 {d.issuers.length} 기업 (PageRank 순) · 색=업종 · 크기=중요도 · ★=거시지표
+
+  const i = sel ? byName[sel] : null;
+  const panel = !i ? (
+    <>
+      <h2>기업을 클릭하세요</h2>
+      <div className="sub">점=기업(색=업종, 크기=중요도) · 네모=업종 · ★=거시지표</div>
+      <div className="legend">기업을 클릭하면 그 기업의 <b>뉴스·긍부정·관련 이슈·같은 업종 기업</b>이 여기 나옵니다. (이슈연관망이 '이슈 렌즈'라면 이건 '기업 렌즈')</div>
+    </>
+  ) : (
+    <>
+      <h2>{i.name}</h2>
+      <div className="sub">
+        {i.sector || "?"} · PPR #{i.rank}
+        {i.pos != null && <> · 52주 위치 <b style={{ color: i.pos >= 70 ? "#6BCB77" : i.pos <= 30 ? "#FF6B6B" : "#aaa" }}>{Math.round(i.pos)}%</b></>}
       </div>
-      <div style={{ height: "100%" }} ref={ref} />
+      <div className="sub">뉴스 {i.news_count || 0}건</div>
+      {i.news_count > 0 && <StanceBar stance={i.stance} />}
+      {i.themes?.length > 0 && <>
+        <div className="seclabel">관련 이슈</div>
+        <div className="chips">{i.themes.map((t) => <span key={t.id} className="chip">{t.label} <span style={{ color: "#8ab" }}>{t.n}</span></span>)}</div>
+      </>}
+      {i.peers?.length > 0 && <>
+        <div className="seclabel">같은 업종 기업</div>
+        <div className="chips">{i.peers.map((p, k) => <span key={k} className="chip" onClick={() => byName[p] && setSel(p)}>{p}</span>)}</div>
+      </>}
+      {i.heads?.length > 0 && <>
+        <div className="seclabel">뉴스 헤드라인</div>
+        {i.heads.map((h, k) => (
+          <div key={k} className={"hd " + (h.s === "bullish" ? "b" : h.s === "bearish" ? "r" : "")}>
+            <span className="dt">{h.d}</span><br />{h.t}
+          </div>
+        ))}
+      </>}
+    </>
+  );
+
+  return (
+    <div className="split">
+      <div className="canvas" ref={ref} style={{ position: "relative" }}>
+        <div style={{ position: "absolute", top: 12, left: 16, zIndex: 1, color: "#99a", fontSize: 13, background: "#11161fcc", padding: "8px 12px", borderRadius: 8, pointerEvents: "none" }}>
+          상위 {d.issuers.length} 기업 (PageRank 순) · 색=업종 · 크기=중요도 · ★=거시지표
+        </div>
+      </div>
+      <div className="panel">{panel}</div>
     </div>
   );
 }
