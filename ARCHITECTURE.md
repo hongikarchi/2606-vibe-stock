@@ -9,17 +9,27 @@
 ├─ run.py                   # 주 진입점 ① 오프라인 데모 파이프라인 (fixtures → SQLite/vault)
 ├─ loop_build.py            # 주 진입점 ② 무인 누적 루프 (EDGAR/DART → Neo4j)
 │
-├─ pipelines/               # ▶ 실행 스크립트 (수동/주기 실행하는 단계들)
-│   ├─ news_pull.py         #   미국 뉴스 수집 (two-track: 기업/거시)
-│   ├─ kr_pull.py           #   한국 기업(DART) + 한국 뉴스
-│   ├─ market_state_pull.py #   52주 위치(시장폭) + 원자재/메모리 가격
-│   ├─ reanalyze.py         #   라이브 그래프 위에서 랭킹 재계산 + graph.html
-│   ├─ build_themes.py      #   테마 연관망 레이어 (고정 사전)
-│   ├─ build_theme_view.py  #   themes.html (의미 요약 + 드릴다운 + 감쇠 + 추세)
-│   ├─ build_emergent.py    #   :Term 키워드망 계산 (DF필터+연결중심)
-│   ├─ build_emergent_view.py #  emergent.html 렌더
-│   ├─ build_dashboard.py   #   dashboard.html 렌더 (시장상태 한 페이지)
-│   └─ comovement_trial.py  #   거시↔주가 동조(상관) 엣지 (실험, 기본 비활성)
+├─ pipelines/               # ▶ 실행 스크립트. [Q]=정량(자동화 가능) [S]=의미(세션) [V]=렌더
+│   ├─ news_pull.py         # [Q] 미국 뉴스 수집 (규칙기반 stance/risk, 멱등 sha1 doc_id)
+│   ├─ kr_pull.py           # [Q] 한국 기업(DART) + 한국 뉴스 (규칙기반)
+│   ├─ market_state_pull.py # [Q] 52주 위치(시장폭) + 원자재/메모리 (yfinance, 덮어쓰기)
+│   ├─ build_themes.py      # [Q] 테마 연관망 (고정 사전 — 규칙)
+│   ├─ build_emergent.py    # [Q] :Term 키워드망 (DF필터 — 규칙)
+│   ├─ reanalyze.py         # [Q] 랭킹 재계산(PPR) + graph.html
+│   ├─ dedup_news.py        # [Q] 일회성 중복정리 (파괴적 — 승인 필요)
+│   ├─ ── 의미 레이어 (세션이 작성, 무인 자동화 X) ──
+│   ├─ (data/theme_summaries.json)  # [S] 테마/연결 의미 요약 — 세션의 Claude가 작성
+│   ├─ (data/edgar/extractions/)    # [S] 세션 작성 풍부한 추출 (supplies/competes 등)
+│   ├─ ── 렌더(아티팩트→React) ──
+│   ├─ build_theme_view.py  # [V] themes.html + themes.json (드릴다운/감쇠/추세)
+│   ├─ build_emergent_view.py # [V] emergent.html
+│   ├─ build_dashboard.py   # [V] dashboard.html
+│   ├─ export_artifacts.py  # [V] 모든 뷰 → web/public/data/*.json + 백업
+│   ├─ artifact_views.py    # [V] 뷰별 데이터 추출 헬퍼
+│   └─ comovement_trial.py  # [Q] 거시↔주가 동조(상관) (실험, 기본 비활성)
+│
+│   # 2-tier 자동화 모델: [Q]는 무인 cron 가능(규칙·멱등). [S]는 세션이 가끔 갱신
+│   #   (무키 원칙). [V]는 [Q]/[S] 갱신 후 돌려 아티팩트 생성. 자세히: DATA_STRATEGY.md
 │
 ├─ skg/                     # ▶ 핵심 패키지
 │   ├─ models.py            #   도메인 dataclass (Issuer, Claim, Theme, ...)

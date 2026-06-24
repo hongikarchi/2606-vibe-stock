@@ -26,10 +26,34 @@
 → 일별/시간별 배치로 충분. 실시간은 보류 권장.
 
 ## 4. 순서 (척추 정해진 뒤)
-1. 추출 tier + 소스 확정 (위 a/b 선택)
-2. 기존 뉴스 중복 일회성 정리 (1.54 부채 청산)
-3. 보존 규칙 (Claim/Mention 무한증가 — prune/아카이브/스냅샷)
-4. **자동화 (마지막)** — 정해진 걸 N시간마다 돌림
+1. ✅ 추출 tier 확정 → 2-tier (위 §2)
+2. ✅ 기존 뉴스 중복 일회성 정리 (1.54→1.02, `dedup_news.py`)
+3. ⏳ 보존 규칙 (Claim/Mention 무한증가 — 아래 §5)
+4. ⏳ **자동화 (마지막)** — 아래 레시피를 N시간마다
+
+### 자동화 레시피 (2-tier, 구조 정해지면 cron/Actions로)
+```
+# [정량 패스] 무인 가능 — 규칙기반·멱등. 예: 6시간마다
+SKG_STORAGE_BACKEND=neo4j python pipelines/news_pull.py        # 뉴스 (sha1 멱등)
+                                  pipelines/market_state_pull.py # 시세·시장폭
+                                  pipelines/build_themes.py      # 테마 카운트·ThemeDay
+                                  pipelines/build_emergent.py    # 키워드망
+                                  pipelines/reanalyze.py         # 랭킹
+                                  pipelines/export_artifacts.py  # → 아티팩트
+git add web/public/data && git commit && git push              # → 자동 재배포
+
+# [의미 패스] 세션(Claude)이 가끔 — 무키. 예: 주 1~2회
+#   세션이 새 헤드라인 읽고 data/theme_summaries.json 갱신 (날짜 박음)
+#   필요시 data/edgar/extractions/ 에 풍부한 관계 추출
+```
+→ 정량은 매일 신선, 의미는 세션 패스 사이엔 약간 stale(날짜 표시됨). 무키 유지.
+
+## 5. 보존 규칙 (다음 작업)
+**핵심 통찰: ThemeDay(일별 집계)가 영속 자산이고, raw 뉴스 Claim은 윈도우링 가능.**
+- ThemeDay/시세/랭킹 = 작고 집계됨 → 영구 보존.
+- raw 뉴스 Claim/Mention = 무한증가 → ThemeDay에 집계된 뒤엔 N일 윈도우만 유지(prune 가능).
+- 옵션: (a) N일 지난 뉴스 Claim prune (집계는 ThemeDay에 남음), (b) 콜드 아카이브(gz),
+  (c) as_of 스냅샷. **파괴적이라 승인 후 실행.** 기본은 비활성(누적 유지).
 
 ## 데이터 소스 현황 (확정된 것)
 - **미국 기업**: SEC EDGAR (키 없음) ✅
