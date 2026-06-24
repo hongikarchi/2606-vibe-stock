@@ -1,7 +1,10 @@
 # generated artifacts
 out/
-data/
+/data/
 lib/
+
+# but DO commit the web app's data artifacts (React data source — durable + shareable)
+!web/public/data/
 
 # project snapshot dirs (local rollback copies)
 *-snapshot-*/
@@ -15,3 +18,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+backups/
+
+# web app build artifacts (source + data committed, build output not)
+web/node_modules/
+web/dist/

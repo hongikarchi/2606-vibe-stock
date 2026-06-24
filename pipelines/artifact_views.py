@@ -1,0 +1,123 @@
+"""artifact_views.py — extract each view's DATA (not HTML) for the React frontend.
+
+Reuses the existing build logic where possible; returns plain dicts the React app renders.
+Keeping data-extraction here (build-time, Neo4j) means the frontend never touches the DB.
+"""
+from __future__ import annotations
+
+import sys as _sys, pathlib as _pathlib
+_sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+
+import json
+
+import config as cfg
+
+
+# ---------------------------------------------------------------- themes
+def build_theme_data(repo) -> dict:
+    """Reuse build_theme_view's main() computation by importing its helpers.
+    It already builds a {nodes, edges} structure with summaries/stance/trend/drilldown."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_btv", _pathlib.Path(__file__).resolve().parent / "build_theme_view.py")
+    btv = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(btv)
+    # build_theme_view.main writes HTML; we replicate just the data assembly by calling a
+    # refactored helper if present, else fall back to running main and reading the embedded JSON.
+    if hasattr(btv, "compute_theme_data"):
+        return btv.compute_theme_data(repo)
+    # fallback: run the HTML build, then parse the embedded JSON back out (themes.html)
+    import re
+    btv.main()  # writes out/themes.html with const DATA = {...}
+    html = (cfg.OUT / "themes.html").read_text(encoding="utf-8")
+    m = re.search(r"const DATA = (\{.*?\});\n", html, re.S)
+    data = json.loads(m.group(1)) if m else {"nodes": [], "edges": []}
+    summaries = json.loads((cfg.ROOT / "data" / "theme_summaries.json").read_text(encoding="utf-8")) \
+        if (cfg.ROOT / "data" / "theme_summaries.json").exists() else {}
+    data["summary_date"] = summaries.get("knowledge_time", "")[:10]
+    return data
+
+
+# ---------------------------------------------------------------- dashboard
+def build_dashboard_data(repo) -> dict:
+    """Market-state data: breadth (US/KR), commodities+series, hot/cold sectors, top terms."""
+    from skg.export.dashboard import _ksic_name
+
+    def breadth(prefix):
+        rows = repo._read(
+            f"MATCH (i:Issuer) WHERE i.issuer_id STARTS WITH '{prefix}' AND i.pos_52w IS NOT NULL "
+            "RETURN i.pos_52w AS p")
+        vals = [r["p"] for r in rows]
+        if not vals:
+            return None
+        n = len(vals)
+        return {"n": n, "hi": round(100 * sum(v >= 80 for v in vals) / n, 1),
+                "lo": round(100 * sum(v <= 20 for v in vals) / n, 1),
+                "med": round(sorted(vals)[n // 2], 1)}
+
+    macros = [dict(r) for r in repo._read(
+        "MATCH (m:MacroIndicator) RETURN m.name AS name, m.last_close AS px, "
+        "m.pct_change_window AS chg, m.category AS cat, m.recent_closes_json AS series "
+        "ORDER BY m.category, m.name")]
+    for m in macros:
+        try:
+            m["series"] = json.loads(m.get("series") or "[]")
+        except Exception:  # noqa: BLE001
+            m["series"] = []
+
+    sectors_raw = repo._read(
+        "MATCH (i:Issuer)-[:IN_SECTOR]->(s:Sector) WHERE i.pos_52w IS NOT NULL "
+        "WITH s.sector_id AS sid, s.name AS name, s.sic_code AS code, "
+        "avg(i.pos_52w) AS heat, count(i) AS n WHERE n >= 4 "
+        "RETURN sid, name, code, heat, n ORDER BY heat DESC")
+    sectors = []
+    for s in sectors_raw:
+        label = _ksic_name(s["code"]) if str(s["sid"]).startswith("KSIC") else s["name"]
+        sectors.append({"sector": label, "heat": round(s["heat"], 1), "n": s["n"]})
+
+    terms = [dict(r) for r in repo._read(
+        "MATCH (t:Term) RETURN t.term AS term, t.degree AS deg, t.spark AS spark "
+        "ORDER BY t.degree DESC LIMIT 16")]
+    return {"as_of": cfg.AS_OF_NOW, "us": breadth("CIK"), "kr": breadth("DART"),
+            "macros": macros, "hot": sectors[:8], "cold": sectors[-8:][::-1], "terms": terms}
+
+
+# ---------------------------------------------------------------- emergent
+def build_emergent_data(repo) -> dict:
+    """Data-driven term network with community clusters (networkx)."""
+    import networkx as nx
+    terms = [dict(r) for r in repo._read(
+        "MATCH (t:Term) RETURN t.term AS term, t.df AS df, t.degree AS deg, t.spark AS spark")]
+    edges = [dict(r) for r in repo._read(
+        "MATCH (a:Term)-[e:CO_OCCURS]->(b:Term) RETURN a.term AS a, b.term AS b, e.weight AS w")]
+    g = nx.Graph()
+    for t in terms:
+        g.add_node(t["term"])
+    for e in edges:
+        g.add_edge(e["a"], e["b"], weight=e["w"])
+    cluster = {}
+    try:
+        for i, c in enumerate(nx.community.greedy_modularity_communities(g, weight="weight")):
+            for node in c:
+                cluster[node] = i
+    except Exception:  # noqa: BLE001
+        pass
+    for t in terms:
+        t["cluster"] = cluster.get(t["term"], 0)
+    return {"terms": terms, "edges": edges, "clusters": len(set(cluster.values()))}
+
+
+# ---------------------------------------------------------------- graph (issuers)
+def build_graph_data(repo, top_n: int = 400) -> dict:
+    """Top-N issuers by PPR + their sectors + macro hubs (the entity graph)."""
+    rows = repo._read(
+        "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
+        "OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
+        "RETURN a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
+        "i.issuer_id AS iid, s.name AS sector, s.sic_code AS sic "
+        "ORDER BY a.rank_credible LIMIT $n", as_of=cfg.AS_OF_NOW, n=top_n)
+    issuers = [dict(r) for r in rows]
+    macros = [dict(r) for r in repo._read(
+        "MATCH (m:MacroIndicator) OPTIONAL MATCH (cl:Claim)-[:ABOUT]->(m) "
+        "RETURN m.indicator_id AS id, m.name AS name, m.category AS cat, count(cl) AS news")]
+    return {"issuers": issuers, "macros": macros}
