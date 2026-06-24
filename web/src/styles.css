@@ -74,3 +74,30 @@ body {
 .pos { color: #6BCB77; } .neg { color: #FF6B6B; } .muted { color: #889; }
 .barbg { display: inline-block; width: 200px; background: #1a2030; border-radius: 4px; vertical-align: middle; height: 14px; }
 .barfg { display: inline-block; height: 14px; border-radius: 4px; vertical-align: top; }
+
+/* ===================== MOBILE (<= 640px) ===================== */
+@media (max-width: 640px) {
+  /* nav: horizontal scroll, never wrap Korean per-character */
+  .nav { gap: 2px; padding: 8px 10px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .nav .brand { font-size: 13px; margin-right: 8px; white-space: nowrap; flex-shrink: 0; }
+  .nav button { padding: 6px 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+  .nav .meta { display: none; }  /* node-count meta hidden on phone (space) */
+
+  /* themes view: stack graph on top, panel below (no side-by-side) */
+  .split { flex-direction: column; }
+  .canvas { height: 45vh; min-height: 280px; flex: none; width: 100%;
+            border-bottom: 1px solid #233; }
+  .panel { width: 100%; flex: 1; border-left: none; padding: 14px 16px; }
+  .panel h2 { font-size: 18px; }
+
+  /* dashboard: tighter, labels narrower so values fit */
+  .dash { padding: 14px 14px; }
+  .dash .lbl { width: 130px; }
+  .dash h2 { font-size: 16px; margin-top: 20px; }
+  .dash h1 { font-size: 18px !important; }
+  .barbg { width: 120px; }
+  .dash td { padding: 3px 5px; font-size: 13px; }
+
+  /* graph/emergent overlay legend smaller */
+  .view > div > div[style*="position: absolute"] { font-size: 11px !important; max-width: 70%; }
+}
