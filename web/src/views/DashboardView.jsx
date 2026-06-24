@@ -56,9 +56,13 @@ export default function DashboardView({ useArtifact }) {
       </tbody></table>
 
       <h2>지금 도는 이슈 (뉴스 자동 추출)</h2>
-      <table><tbody>
+      <table className="terms"><tbody>
         {d.terms.map((t, i) => (
-          <tr key={i}><td className="lbl">{t.term}</td><td className="muted">연결 {t.deg}</td><td style={{ fontFamily: "monospace" }}>{t.spark}</td></tr>
+          <tr key={i}>
+            <td className="lbl">{t.term}</td>
+            <td className="muted">연결 {t.deg}</td>
+            <td className="spark">{t.spark}</td>
+          </tr>
         ))}
       </tbody></table>
     </div>

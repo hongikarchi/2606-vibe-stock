@@ -74,6 +74,10 @@ body {
 .pos { color: #6BCB77; } .neg { color: #FF6B6B; } .muted { color: #889; }
 .barbg { display: inline-block; width: 200px; background: #1a2030; border-radius: 4px; vertical-align: middle; height: 14px; }
 .barfg { display: inline-block; height: 14px; border-radius: 4px; vertical-align: top; }
+/* the "도는 이슈" monospace trend — constrain so it never forces horizontal overflow */
+.dash table.terms { table-layout: fixed; }
+.dash td.spark { font-family: monospace; color: #6a7; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 0; font-size: 12px; }
 
 /* ===================== MOBILE (<= 640px) ===================== */
 @media (max-width: 640px) {
