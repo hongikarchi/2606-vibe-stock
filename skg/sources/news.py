@@ -63,6 +63,26 @@ def _strip_html(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+# Automated stock-screener / aggregator factories — templated boilerplate, not journalism.
+# (Confirmed from data: these ~16 outlets = 24% of news volume, all US/English.) Filtered
+# from USER-FACING headlines + stance so the views show real reporting, not "EPS estimates
+# upside" junk. NOT deleted from the graph — just not surfaced.
+JUNK_OUTLETS = [
+    "simplywall", "chartmill", "marketbeat", "gurufocus", "seeking alpha", "zacks",
+    "quiver", "benzinga", "insider monkey", "globenewswire", "tradingview", "moomoo",
+    "tipranks", "stocktwits", "marketscreener", "defense world", "stocktitan",
+    "stock titan", "ad hoc", "newswire", "etf daily", "barchart", "investorplace",
+    "247 wall", "tradingkey", "tikr", "sahm", "directorstalk", "modern readers",
+    "defenseworld",
+]
+
+
+def is_junk_outlet(source_name: str) -> bool:
+    """True if the outlet is an automated-content factory (filter from display, not storage)."""
+    s = (source_name or "").casefold()
+    return any(j in s for j in JUNK_OUTLETS)
+
+
 def _outlet_class(source_name: str) -> tuple[str, float]:
     s = (source_name or "").casefold()
     for t in TIER1_OUTLETS:
