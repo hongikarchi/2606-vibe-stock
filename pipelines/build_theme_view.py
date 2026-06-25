@@ -71,15 +71,15 @@ def main() -> None:
     summaries = _load_summaries()
     # claim headline + the entity it's about (for per-theme top entities = "sub-bubbles").
     # Join the source so we can exclude automated-content factory outlets from display.
-    from skg.sources.news import is_junk_outlet
+    from skg.sources.news import is_quality_outlet
     rows = repo._read(
         "MATCH (cl:Claim)-[:FROM_SOURCE]->(src:Source) WHERE cl.source_id STARTS WITH 'news::' "
         "OPTIONAL MATCH (cl)-[:ABOUT]->(e) WHERE e:Issuer OR e:MacroIndicator "
         "RETURN cl.source_span AS h, cl.event_time AS t, "
         "coalesce(e.name, e.indicator_id) AS ent, src.name AS outlet")
     items = [(r["h"], (r["t"] or "")[:10], r["ent"]) for r in rows
-             if r["h"] and not is_junk_outlet(r["outlet"])]
-    print(f"[view] {len(items)} headlines (junk outlets filtered)")
+             if r["h"] and is_quality_outlet(r["outlet"])]  # allow-list: vetted press only
+    print(f"[view] {len(items)} headlines (vetted press only)")
     theme_entities = defaultdict(Counter)
     entity_total = Counter()  # overall mentions per entity (for LIFT ranking)
 

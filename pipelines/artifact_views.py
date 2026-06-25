@@ -114,7 +114,7 @@ def build_graph_data(repo, top_n: int = 400) -> dict:
     parallel to themes' issue lens — click a company, see its story.)"""
     from skg.analyze.themes import label_of, themes_in
     from skg.analyze import lexicon
-    from skg.sources.news import is_junk_outlet
+    from skg.sources.news import is_quality_outlet
 
     rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
@@ -134,7 +134,7 @@ def build_graph_data(repo, top_n: int = 400) -> dict:
     by_issuer = {}
     for r in news:
         h = r["h"]
-        if not h or is_junk_outlet(r["outlet"]):
+        if not h or not is_quality_outlet(r["outlet"]):  # surface only vetted press
             continue
         st = lexicon.stance_of(h)
         ch = (h.split(" - ")[0] if " - " in h[-40:] else h).strip()[:110]

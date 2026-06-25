@@ -63,24 +63,36 @@ def _strip_html(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-# Automated stock-screener / aggregator factories — templated boilerplate, not journalism.
-# (Confirmed from data: these ~16 outlets = 24% of news volume, all US/English.) Filtered
-# from USER-FACING headlines + stance so the views show real reporting, not "EPS estimates
-# upside" junk. NOT deleted from the graph — just not surfaced.
-JUNK_OUTLETS = [
-    "simplywall", "chartmill", "marketbeat", "gurufocus", "seeking alpha", "zacks",
-    "quiver", "benzinga", "insider monkey", "globenewswire", "tradingview", "moomoo",
-    "tipranks", "stocktwits", "marketscreener", "defense world", "stocktitan",
-    "stock titan", "ad hoc", "newswire", "etf daily", "barchart", "investorplace",
-    "247 wall", "tradingkey", "tikr", "sahm", "directorstalk", "modern readers",
-    "defenseworld",
+# ALLOW-LIST of reputable press for USER-FACING display. The user's insight: rather than
+# chase an ever-growing junk deny-list (factory outlets appear faster than you can list them),
+# keep only vetted journalism. Measured: with Yahoo Finance included, only 13/400 top US
+# issuers go dark (3%); without it, 197/400 (49%) — so Yahoo stays (its aggregated content is
+# the coverage backbone; we can't resolve its true publishers retroactively). NOT a storage
+# filter — junk is kept in the graph, just not surfaced in headlines/stance.
+QUALITY_OUTLETS = [
+    # US / global wires + tier-1 financial press
+    "reuters", "bloomberg", "wall street journal", "wsj", "financial times", "cnbc",
+    "marketwatch", "barron", "forbes", "new york times", "associated press", "ap news",
+    "the motley fool", "business wire", "globe and mail", "yahoo finance", "fortune",
+    "the economist", "axios", "cnn business", "guardian", "nikkei",
+    # KR tier-1 press (the "세이브가 쓰는 언론사" intent — vetted Korean journalism)
+    "매일경제", "한국경제", "연합뉴스", "조선비즈", "chosunbiz", "ked global", "뉴스핌",
+    "서울경제", "머니투데이", "이데일리", "한겨레", "중앙일보", "동아일보", "조선일보",
+    "jtbc", "sbs", "kbs", "mbc", "뉴시스", "daum", "네이트", "파이낸셜뉴스", "아시아경제",
+    "헤럴드경제", "전자신문", "지디넷", "비즈워치", "더벨", "인포맥스",
 ]
 
 
-def is_junk_outlet(source_name: str) -> bool:
-    """True if the outlet is an automated-content factory (filter from display, not storage)."""
+def is_quality_outlet(source_name: str) -> bool:
+    """True if the outlet is vetted press (allow-list). Only these are surfaced in the UI."""
     s = (source_name or "").casefold()
-    return any(j in s for j in JUNK_OUTLETS)
+    return any(q in s for q in QUALITY_OUTLETS)
+
+
+# kept for the emergent builder's data-driven path (deny-list still useful there)
+def is_junk_outlet(source_name: str) -> bool:
+    """Inverse of the allow-list, for callers that still think in deny terms."""
+    return not is_quality_outlet(source_name)
 
 
 def _outlet_class(source_name: str) -> tuple[str, float]:
