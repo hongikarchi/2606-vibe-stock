@@ -69,12 +69,21 @@ def _strip_html(s: str) -> str:
 # issuers go dark (3%); without it, 197/400 (49%) — so Yahoo stays (its aggregated content is
 # the coverage backbone; we can't resolve its true publishers retroactively). NOT a storage
 # filter — junk is kept in the graph, just not surfaced in headlines/stance.
+# NOTE on financial institutions (Goldman, BofA, Citi, Morgan Stanley, Wells Fargo, Moody's):
+# these are NOT publishers — they're SUBJECTS mentioned in news ("Goldman raises target").
+# They're already :Issuer nodes in the graph (all public, in EDGAR), so the company-graph
+# lens already shows their activity. "What Goldman says about OTHER stocks" (ratings/targets)
+# is relationship data needing the session/LLM extraction tier — not a publisher allow-list.
+# So institutions are deliberately NOT here.
 QUALITY_OUTLETS = [
-    # US / global wires + tier-1 financial press
-    "reuters", "bloomberg", "wall street journal", "wsj", "financial times", "cnbc",
-    "marketwatch", "barron", "forbes", "new york times", "associated press", "ap news",
-    "the motley fool", "business wire", "globe and mail", "yahoo finance", "fortune",
-    "the economist", "axios", "cnn business", "guardian", "nikkei",
+    # US / global wires + tier-1 financial press (the names SaveTicker pulls from)
+    "reuters", "bloomberg", "wall street journal", "wsj", "financial times", "ft.com",
+    "cnbc", "marketwatch", "barron", "forbes", "new york times", "associated press",
+    "ap news", "the motley fool", "business wire", "globe and mail", "yahoo finance",
+    "fortune", "the economist", "axios", "cnn business", "guardian", "nikkei",
+    "financial juice", "investor's business daily", "investors business daily", "kiplinger",
+    # NOTE: Google News barely surfaces the wires (Reuters 35 / Bloomberg 58 / FT 3 in our
+    # data) vs Yahoo 1958 — "clean US news" is limited by what Google returns, not filtering.
     # KR tier-1 press (the "세이브가 쓰는 언론사" intent — vetted Korean journalism)
     "매일경제", "한국경제", "연합뉴스", "조선비즈", "chosunbiz", "ked global", "뉴스핌",
     "서울경제", "머니투데이", "이데일리", "한겨레", "중앙일보", "동아일보", "조선일보",
