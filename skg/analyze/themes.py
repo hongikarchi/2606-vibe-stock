@@ -10,6 +10,8 @@ Curated first; session-authored additions are the natural overlay. Keep it inspe
 """
 from __future__ import annotations
 
+import re
+
 # theme_id -> (display label, [bilingual keywords])
 THEMES = {
     "ai":            ("AI / 인공지능", ["AI", "인공지능", "artificial intelligence", "generative", "생성형", "LLM", "챗GPT", "ChatGPT"]),
@@ -35,15 +37,73 @@ THEMES = {
 }
 
 
-def themes_in(text: str) -> set[str]:
-    """Return the set of theme_ids whose keywords appear in the text (case-insensitive)."""
+def _kw_hit(kw: str, text_cf: str) -> bool:
+    """Does keyword kw occur in text_cf? Latin-script keywords match on WORD BOUNDARIES
+    (so 'AI' doesn't fire on 'm-ai-l'/'Haw-ai-i', 'EV' not on 'r-ev-enue', 'fed' not on
+    'Fe-d-Ex'); Korean keywords use substring (Hangul is agglutinative, so '반도체' inside
+    '반도체용' is a correct hit). This single fix removes the bulk of the old false positives
+    (measured: AI bucket was 36% real, EV 19% — the rest were substring accidents)."""
+    kw = kw.casefold()
+    if any("가" <= c <= "힣" for c in kw):       # Korean -> substring
+        return kw in text_cf
+    return re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", text_cf) is not None
+
+
+# ---- 2-level hierarchy: parents = THEMES above (stable spine); children = data/subthemes.json
+# (session-curated, see that file + pipelines/curate flow). Loaded once. Each child:
+#   child_id -> (label, parent_id, [keywords]). themes_in() returns BOTH levels.
+def _load_subthemes():
+    import json
+    import pathlib
+    p = pathlib.Path(__file__).resolve().parents[2] / "data" / "subthemes.json"
+    out = {}
+    if not p.exists():
+        return out
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return out
+    for parent_id, children in data.items():
+        if parent_id.startswith("_") or parent_id not in THEMES:
+            continue
+        for ch in children:
+            out[ch["id"]] = (ch["label"], parent_id, ch["keywords"])
+    return out
+
+
+SUBTHEMES = _load_subthemes()              # child_id -> (label, parent_id, keywords)
+_CHILD_PARENT = {cid: p for cid, (_l, p, _k) in SUBTHEMES.items()}
+
+
+def themes_in(text: str, include_children: bool = True) -> set[str]:
+    """theme_ids whose keywords appear in text. Returns BOTH parent themes (THEMES) and,
+    when include_children, child sub-themes (SUBTHEMES) — word-boundary for Latin / substring
+    for Korean (see _kw_hit). A child hit does NOT auto-add its parent here; callers that want
+    only parents pass include_children=False (e.g. back-compat counting)."""
     t = (text or "").casefold()
     found = set()
     for tid, (_label, kws) in THEMES.items():
-        if any(k.casefold() in t for k in kws):
+        if any(_kw_hit(k, t) for k in kws):
             found.add(tid)
+    if include_children:
+        for cid, (_label, _parent, kws) in SUBTHEMES.items():
+            if any(_kw_hit(k, t) for k in kws):
+                found.add(cid)
     return found
 
 
 def label_of(theme_id: str) -> str:
-    return THEMES.get(theme_id, (theme_id, []))[0]
+    if theme_id in THEMES:
+        return THEMES[theme_id][0]
+    if theme_id in SUBTHEMES:
+        return SUBTHEMES[theme_id][0]
+    return theme_id
+
+
+def parent_of(theme_id: str) -> str | None:
+    """Parent theme_id of a child, or None if it's a parent/unknown."""
+    return _CHILD_PARENT.get(theme_id)
+
+
+def is_parent(theme_id: str) -> bool:
+    return theme_id in THEMES

@@ -15,27 +15,15 @@ import config as cfg
 
 # ---------------------------------------------------------------- themes
 def build_theme_data(repo) -> dict:
-    """Reuse build_theme_view's main() computation by importing its helpers.
-    It already builds a {nodes, edges} structure with summaries/stance/trend/drilldown."""
+    """Single source of truth: build_theme_view.compute_theme_data assembles the
+    {nodes, edges, summary_date} structure used by BOTH the HTML builder and this React
+    artifact (no more regex-scraping JSON back out of themes.html)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "_btv", _pathlib.Path(__file__).resolve().parent / "build_theme_view.py")
     btv = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(btv)
-    # build_theme_view.main writes HTML; we replicate just the data assembly by calling a
-    # refactored helper if present, else fall back to running main and reading the embedded JSON.
-    if hasattr(btv, "compute_theme_data"):
-        return btv.compute_theme_data(repo)
-    # fallback: run the HTML build, then parse the embedded JSON back out (themes.html)
-    import re
-    btv.main()  # writes out/themes.html with const DATA = {...}
-    html = (cfg.OUT / "themes.html").read_text(encoding="utf-8")
-    m = re.search(r"const DATA = (\{.*?\});\n", html, re.S)
-    data = json.loads(m.group(1)) if m else {"nodes": [], "edges": []}
-    summaries = json.loads((cfg.ROOT / "data" / "theme_summaries.json").read_text(encoding="utf-8")) \
-        if (cfg.ROOT / "data" / "theme_summaries.json").exists() else {}
-    data["summary_date"] = summaries.get("knowledge_time", "")[:10]
-    return data
+    return btv.compute_theme_data(repo)
 
 
 # ---------------------------------------------------------------- dashboard

@@ -31,7 +31,7 @@ except Exception:
 
 import config as cfg
 from skg.analyze import lexicon
-from skg.analyze.themes import THEMES, label_of, themes_in
+from skg.analyze.themes import THEMES, is_parent, label_of, parent_of, themes_in
 from skg.database import make_repo
 
 MIN_COOCCUR = 4
@@ -66,8 +66,11 @@ def _load_summaries():
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def main() -> None:
-    repo = make_repo(cfg)
+def compute_theme_data(repo) -> dict:
+    """Assemble the {nodes, edges, summary_date} structure for BOTH the standalone HTML
+    builder and the React artifact (artifact_views.build_theme_data). Single source of truth
+    — previously the React path regex-scraped this JSON back out of themes.html, which drifted.
+    Also persists :ThemeDay buckets as a side effect (additive temporal layer)."""
     summaries = _load_summaries()
     # claim headline + the entity it's about (for per-theme top entities = "sub-bubbles").
     # Join the source so we can exclude automated-content factory outlets from display.
@@ -99,7 +102,7 @@ def main() -> None:
     for h, date, ent in items:
         if ent:
             entity_total[ent] += 1
-        ts = themes_in(h)
+        ts = themes_in(h)  # parents AND child sub-themes
         if not ts:
             continue
         st = lexicon.stance_of(h)
@@ -121,7 +124,10 @@ def main() -> None:
                     te_heads[(t, ent)].append((date, ch, st))
             if len(node_heads[t]) < 400:
                 node_heads[t].append((date, ch, st))
-        for a, b in combinations(sorted(ts), 2):
+        # co-occurrence edges among PARENTS only (the macro association web). Children attach
+        # to their parent via hierarchy (CHILD_OF), not via this co-occurrence graph.
+        parents = sorted(t for t in ts if is_parent(t))
+        for a, b in combinations(parents, 2):
             cooc[(a, b)] += 1
             edge_stance[(a, b)][st] += 1
             if len(edge_heads[(a, b)]) < 200:
@@ -160,9 +166,11 @@ def main() -> None:
             cand.append((lift * math.log1p(c), c, e))
         cand.sort(reverse=True)
         ents = [{"name": e, "n": c, "heads": top(te_heads[(t, e)])} for _, c, e in cand[:8]]
-        # co-occurring themes (clickable -> opens that edge panel; drill level 2 sideways)
+        # co-occurring PARENT themes (clickable -> opens that edge panel; drill level 2 sideways).
+        # only parents have co-occurrence edges; restrict candidates so children don't show here.
         linked = sorted(
-            [(cooc.get((min(t, o), max(t, o)), 0), o) for o in freq if o != t],
+            [(cooc.get((min(t, o), max(t, o)), 0), o) for o in freq
+             if o != t and is_parent(o) and is_parent(t)],
             reverse=True)
         related = [{"id": o, "label": label_of(o), "w": w} for w, o in linked if w >= MIN_COOCCUR][:6]
         ws = wstance[t]
@@ -171,6 +179,8 @@ def main() -> None:
         trend = [c for _, c in tdays[-21:]]
         nodes.append({
             "id": t, "label": label_of(t), "freq": f,
+            "parent": parent_of(t),            # None for parents; parent_id for children
+            "level": 0 if is_parent(t) else 1,
             "heat": round(wf, 1),  # decay-weighted "지금 열기"
             "size": 18 + 42 * (wf / maxwf),  # SIZE reflects recent heat, not raw count
             "summary": summaries.get("nodes", {}).get(t, ""),
@@ -195,11 +205,6 @@ def main() -> None:
         })
     print(f"[view] {len(nodes)} themes, {len(edges)} edges with headlines+stance attached")
 
-    out = cfg.OUT / "themes.html"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(_render(nodes, edges), encoding="utf-8")
-    print(f"[view] -> {out}")
-
     # persist per-day buckets (:ThemeDay) — additive temporal layer for decay/trend/accumulation
     if hasattr(repo, "write_theme_days"):
         day_rows = [{"theme_id": t, "day": d, "count": b["count"],
@@ -207,6 +212,18 @@ def main() -> None:
                     for (t, d), b in theme_day.items()]
         repo.write_theme_days(day_rows)
         print(f"[view] persisted {len(day_rows)} :ThemeDay buckets")
+
+    return {"nodes": nodes, "edges": edges,
+            "summary_date": summaries.get("knowledge_time", "")[:10]}
+
+
+def main() -> None:
+    repo = make_repo(cfg)
+    data = compute_theme_data(repo)
+    out = cfg.OUT / "themes.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_render(data["nodes"], data["edges"]), encoding="utf-8")
+    print(f"[view] -> {out}")
     repo.close()
 
 
