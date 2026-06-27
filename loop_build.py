@@ -95,6 +95,16 @@ def main() -> None:
     fetcher = EdgarFetcher(cfg.EDGAR_USER_AGENT)
     total_issuers = fetcher.universe_size()
 
+    # US issuer universe gate: only ingest S&P500 ∪ NASDAQ-100 issuers (no micro-cap junk
+    # polluting the graph). NEWS/MACRO ingestion is unaffected — this gates the EDGAR crawl only.
+    from skg.analyze.universe import us_universe_ciks
+    try:
+        universe = set(us_universe_ciks())
+        print(f"[loop] US universe gate: {len(universe)} in-universe CIKs (S&P500 ∪ NASDAQ-100)")
+    except Exception as e:  # noqa: BLE001 — if the constituent fetch fails, don't gate (fail open)
+        print(f"[loop] WARN universe fetch failed ({type(e).__name__}); ingesting ungated")
+        universe = None
+
     state = _load_state()
     print(f"[loop] start: backend={cfg.STORAGE_BACKEND} target={cfg.N_NODES_TARGET} "
           f"nodes universe={total_issuers} issuers  resuming@offset={state['offset']}")
@@ -114,11 +124,28 @@ def main() -> None:
 
         offset = state["offset"]
         ciks = fetcher.cik_batch(offset, ISSUERS_PER_BATCH)
+        # universe gate: keep only in-universe CIKs (skip the micro-cap crawl entirely)
+        if universe is not None:
+            ciks = [c for c in ciks if f"CIK{int(c):010d}" in universe]
+            if not ciks:
+                state["offset"] = offset + ISSUERS_PER_BATCH
+                state["batches"] += 1
+                _save_state(state)
+                continue  # whole slice out-of-universe -> advance without fetching
 
-        # 1) issuer scaffolding for this slice -> MERGE (nodes climb cheaply)
+        # 1) issuer scaffolding for this slice -> MERGE (nodes climb cheaply). Gate to in-universe
+        #    issuers so junk never enters the graph. fetch_issuer_universe returns
+        #    (issuers, securities, listings, aliases): issuers/securities carry issuer_id,
+        #    aliases carry target_id, listings link via security_id -> keep only kept securities'.
         try:
-            iss, sec, lst, al = fetcher.fetch_issuer_universe(offset=offset, limit=ISSUERS_PER_BATCH)
-            repo.write_issuer_master(iss, sec, lst, al)
+            iss, secu, lst, al = fetcher.fetch_issuer_universe(offset=offset, limit=ISSUERS_PER_BATCH)
+            if universe is not None:
+                iss = [x for x in iss if x.issuer_id in universe]
+                secu = [x for x in secu if x.issuer_id in universe]
+                keep_secids = {x.security_id for x in secu}
+                lst = [x for x in lst if x.security_id in keep_secids]
+                al = [x for x in al if x.target_id in universe]
+            repo.write_issuer_master(iss, secu, lst, al)
         except Exception as e:  # noqa: BLE001 — a bad slice must not kill the night
             print(f"[loop] WARN issuer slice @{offset} failed: {type(e).__name__}: {e}")
 

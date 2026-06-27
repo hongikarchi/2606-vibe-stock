@@ -332,6 +332,17 @@ class Neo4jRepository:
             rows=[{"iid": k, "pos": v} for k, v in positions.items()],
         )
 
+    def set_index_membership(self, memberships: dict) -> None:
+        """Stamp index membership ('S&P500,NASDAQ100') on US issuers for the universe filter.
+        memberships = {cik: [labels]}. Idempotent; only sets the tag, prunes nothing."""
+        if not memberships:
+            return
+        self._write(
+            "UNWIND $rows AS r MATCH (i:Issuer {issuer_id: r.iid}) "
+            "SET i.index_membership = r.mem",
+            rows=[{"iid": k, "mem": ",".join(v)} for k, v in memberships.items()],
+        )
+
     def write_ratings(self, rows: list[dict]) -> None:
         """Stamp analyst-ratings JSON on Issuer nodes (consensus + per-firm changes).
         OBSERVATION of institutional ratings — stored with its disclaimer, never our signal."""

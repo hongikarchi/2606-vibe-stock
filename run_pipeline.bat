@@ -37,6 +37,9 @@ if "%SKG_INCLUDE_KR%"=="1" (
 )
 echo [run] market_state_pull >> "%LOG%"
 python pipelines\market_state_pull.py >> "%LOG%" 2>&1
+REM keep index-membership tags current (non-destructive; never auto-prunes in the cron) ----
+echo [run] tag_universe >> "%LOG%"
+python pipelines\tag_universe.py     >> "%LOG%" 2>&1
 echo [run] build_themes >> "%LOG%"
 python pipelines\build_themes.py     >> "%LOG%" 2>&1
 echo [run] build_emergent >> "%LOG%"
