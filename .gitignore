@@ -5,6 +5,8 @@ lib/
 
 # but DO commit the web app's data artifacts (React data source — durable + shareable)
 !web/public/data/
+# and the curated theme taxonomy (session-authored source the runtime loads, not transient)
+!/data/subthemes.json
 
 # project snapshot dirs (local rollback copies)
 *-snapshot-*/
