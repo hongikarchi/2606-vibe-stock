@@ -96,23 +96,31 @@ def build_emergent_data(repo) -> dict:
 
 
 # ---------------------------------------------------------------- graph (issuers)
-def build_graph_data(repo, top_n: int = 400) -> dict:
-    """Top-N issuers by PPR + sectors + macro hubs, EACH enriched for drill-down:
-    news headlines+stance, 52w position, sector peers, related themes. (company lens,
+def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
+    """Top issuers + sectors + macro hubs, EACH enriched for drill-down. RESERVES slots for
+    both markets: top US by credibility-weighted PageRank (rank_credible) AND top KR by NAIVE
+    PageRank (ppr_naive) — KR is structurally ~0 on rank_credible because credibility is
+    US-press-based, so credible-rank would otherwise hide every Korean company. (company lens,
     parallel to themes' issue lens — click a company, see its story.)"""
     from skg.analyze.themes import label_of, themes_in
     from skg.analyze import lexicon
     from skg.sources.news import is_quality_outlet
 
     import json as _json
-    rows = repo._read(
+    cols = ("a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
+            "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, "
+            "s.sic_code AS sic, i.ratings_consensus AS rc, i.ratings_changes AS rch")
+    us_rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
-        "OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
-        "RETURN a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
-        "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, s.sic_code AS sic, "
-        "i.ratings_consensus AS rc, i.ratings_changes AS rch "
-        "ORDER BY a.rank_credible LIMIT $n", as_of=cfg.AS_OF_NOW, n=top_n)
-    issuers = [dict(r) for r in rows]
+        "WHERE i.issuer_id STARTS WITH 'CIK' OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
+        f"RETURN {cols} ORDER BY a.rank_credible LIMIT $n",
+        as_of=cfg.AS_OF_NOW, n=max(0, top_n - kr_slots))
+    kr_rows = repo._read(
+        "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
+        "WHERE i.issuer_id STARTS WITH 'DART' OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
+        f"RETURN {cols} ORDER BY a.ppr_naive DESC LIMIT $n",
+        as_of=cfg.AS_OF_NOW, n=kr_slots)
+    issuers = [dict(r) for r in us_rows] + [dict(r) for r in kr_rows]
     iids = [i["iid"] for i in issuers]
 
     # per-issuer news headlines (drill-down evidence) — exclude junk (factory) outlets
