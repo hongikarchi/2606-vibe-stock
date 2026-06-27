@@ -178,3 +178,49 @@ class MarketFetcher:
                     event_time=dates[-1], knowledge_time=knowledge_time,
                 ))
         return out
+
+    # --------------------------------------------- analyst ratings (관측, NOT a signal)
+    def fetch_ratings(self, issuer_tickers, knowledge_time: str, max_changes: int = 6):
+        """Per-issuer analyst data: consensus (mean target, # analysts, rating) + recent
+        per-firm rating CHANGES (firm, to-grade, action, target, date). This is OBSERVATION
+        of what institutions DID/SAID — never our own recommendation. US has firm-level
+        changes; KR (.KS/.KQ) yfinance gives consensus only. One Ticker call per issuer
+        (slower) so this runs on a bounded top-N, not the whole universe.
+        """
+        import yfinance as yf
+        out = []
+        for issuer_id, security_id, ticker in issuer_tickers:
+            try:
+                t = yf.Ticker(ticker)
+                info = t.info
+                consensus = {
+                    "target_mean": info.get("targetMeanPrice"),
+                    "target_high": info.get("targetHighPrice"),
+                    "target_low": info.get("targetLowPrice"),
+                    "n_analysts": info.get("numberOfAnalystOpinions"),
+                    "rating": info.get("recommendationKey"),
+                }
+                if not consensus["n_analysts"]:
+                    continue  # no analyst coverage -> skip
+                changes = []
+                try:
+                    ud = t.upgrades_downgrades
+                    if ud is not None and len(ud):
+                        for d, row in ud.sort_index(ascending=False).head(max_changes).iterrows():
+                            changes.append({
+                                "date": str(d)[:10], "firm": str(row.get("Firm", "")),
+                                "to": str(row.get("ToGrade", "")), "from": str(row.get("FromGrade", "")),
+                                "action": str(row.get("Action", "")),
+                                "target": float(row.get("currentPriceTarget") or 0) or None,
+                            })
+                except Exception:  # noqa: BLE001
+                    pass
+                out.append({
+                    "issuer_id": issuer_id, "consensus": consensus, "changes": changes,
+                    "knowledge_time": knowledge_time,
+                    "disclaimer": "기관 동향 관측 · 우리 추천 아님 / observed institutional "
+                                  "ratings, NOT our recommendation",
+                })
+            except Exception:  # noqa: BLE001 — a bad ticker must not kill the batch
+                continue
+        return out

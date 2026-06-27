@@ -88,6 +88,25 @@ export default function GraphView({ useArtifact }) {
       </div>
       <div className="sub">뉴스 {i.news_count || 0}건</div>
       {i.news_count > 0 && <StanceBar stance={i.stance} />}
+      {i.ratings?.consensus?.n_analysts > 0 && (
+        <div className="summary" style={{ borderColor: "#3a4a2a" }}>
+          <span className="tag" style={{ color: "#9fd" }}>🏦 기관 동향 (관측 · 우리 추천 아님)</span>
+          목표가 평균 <b>{Math.round(i.ratings.consensus.target_mean)}</b>
+          {" "}(범위 {Math.round(i.ratings.consensus.target_low)}~{Math.round(i.ratings.consensus.target_high)})
+          {" · "}애널리스트 {i.ratings.consensus.n_analysts}명{" · "}
+          <span style={{ color: "#bcd" }}>{i.ratings.consensus.rating}</span>
+          {i.ratings.changes?.length > 0 && (
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              {i.ratings.changes.slice(0, 4).map((c, k) => (
+                <div key={k} style={{ color: "#aab", marginTop: 3 }}>
+                  <span style={{ color: "#778" }}>{c.date}</span> {c.firm} → <b>{c.to}</b>
+                  {c.target ? ` ($${Math.round(c.target)})` : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {i.themes?.length > 0 && <>
         <div className="seclabel">관련 이슈</div>
         <div className="chips">{i.themes.map((t) => <span key={t.id} className="chip">{t.label} <span style={{ color: "#8ab" }}>{t.n}</span></span>)}</div>

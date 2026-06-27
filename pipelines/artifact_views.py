@@ -116,11 +116,13 @@ def build_graph_data(repo, top_n: int = 400) -> dict:
     from skg.analyze import lexicon
     from skg.sources.news import is_quality_outlet
 
+    import json as _json
     rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
         "OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
         "RETURN a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
-        "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, s.sic_code AS sic "
+        "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, s.sic_code AS sic, "
+        "i.ratings_consensus AS rc, i.ratings_changes AS rch "
         "ORDER BY a.rank_credible LIMIT $n", as_of=cfg.AS_OF_NOW, n=top_n)
     issuers = [dict(r) for r in rows]
     iids = [i["iid"] for i in issuers]
@@ -167,6 +169,13 @@ def build_graph_data(repo, top_n: int = 400) -> dict:
         i["themes"] = [{"id": t, "label": label_of(t), "n": n}
                        for t, n in sorted(themes.items(), key=lambda x: -x[1])[:5]]
         i["peers"] = peers.get(i["iid"], [])
+        # analyst ratings (관측·추천 아님) — parse the JSON stamped on the node
+        try:
+            i["ratings"] = {"consensus": _json.loads(i.pop("rc")) if i.get("rc") else None,
+                            "changes": _json.loads(i.pop("rch")) if i.get("rch") else []}
+        except Exception:  # noqa: BLE001
+            i["ratings"] = None
+        i.pop("rc", None); i.pop("rch", None)
 
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) OPTIONAL MATCH (cl:Claim)-[:ABOUT]->(m) "

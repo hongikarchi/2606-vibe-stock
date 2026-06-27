@@ -332,6 +332,22 @@ class Neo4jRepository:
             rows=[{"iid": k, "pos": v} for k, v in positions.items()],
         )
 
+    def write_ratings(self, rows: list[dict]) -> None:
+        """Stamp analyst-ratings JSON on Issuer nodes (consensus + per-firm changes).
+        OBSERVATION of institutional ratings — stored with its disclaimer, never our signal."""
+        if not rows:
+            return
+        params = [{"iid": r["issuer_id"],
+                   "consensus": json.dumps(r["consensus"], ensure_ascii=False),
+                   "changes": json.dumps(r["changes"], ensure_ascii=False),
+                   "disclaimer": r["disclaimer"], "kt": r["knowledge_time"]}
+                  for r in rows]
+        self._write(
+            "UNWIND $rows AS r MATCH (i:Issuer {issuer_id: r.iid}) "
+            "SET i.ratings_consensus = r.consensus, i.ratings_changes = r.changes, "
+            "    i.ratings_disclaimer = r.disclaimer, i.ratings_kt = r.kt",
+            rows=params)
+
     def get_issuer_symbols(self) -> list[tuple[str, str]]:
         """(issuer_id, yfinance_symbol). US tickers as-is; KR need .KS/.KQ from the listing venue."""
         rows = self._read(
