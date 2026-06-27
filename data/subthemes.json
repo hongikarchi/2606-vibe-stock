@@ -1,0 +1,55 @@
+{
+ "_doc": "Session-curated 2-level theme hierarchy. CODE mines candidates (mine_phrase_candidates.py); the SESSION (Claude, no API key) authors these DURABLE children from the bucket's sample headlines — ephemeral single events (두산밥캣 갑질, 호남 투자) stay as headlines INSIDE a child, not as their own node. Each child = {id, label, keywords(KO substring / Latin word-boundary, matched by themes._kw_hit)}. Runtime stays deterministic substring/word-boundary matching. Re-author by hand when narratives shift; parents (themes.py THEMES) are the stable spine.",
+ "ai": [
+  {"id": "ai_infra", "label": "AI 인프라 / 데이터센터 투자", "keywords": ["AI 데이터센터", "AI 인프라", "AI infrastructure", "데이터센터", "data center", "hyperscaler", "GPU", "AI 컴퍼니", "AI 투자"]},
+  {"id": "ai_chip", "label": "AI 반도체 / 칩", "keywords": ["AI 반도체", "AI chip", "AI semiconductor", "nvidia", "엔비디아", "TPU", "가속기", "accelerator", "neural"]},
+  {"id": "ai_bubble", "label": "AI 거품 / 과열 논란", "keywords": ["AI 거품", "AI bubble", "거품", "과열", "overvalued", "doubts", "AI doubt", "조정"]},
+  {"id": "ai_robot", "label": "AI 로봇 / 휴머노이드", "keywords": ["로봇", "robot", "humanoid", "휴머노이드", "로보틱스", "robotics", "자율"]},
+  {"id": "ai_adopt", "label": "AI 도입 / 사업 전환", "keywords": ["인공지능 전환", "AI 전환", "AI 도입", "AI push", "전담 조직", "AI-powered", "생성형 AI", "AI 솔루션"]}
+ ],
+ "semiconductor": [
+  {"id": "semi_hbm", "label": "HBM / 메모리", "keywords": ["HBM", "메모리", "memory chip", "D램", "DRAM", "낸드", "NAND", "고대역폭"]},
+  {"id": "semi_equip", "label": "반도체 장비 / 소부장", "keywords": ["반도체 장비", "semiconductor equipment", "소부장", "본더", "장비", "후공정", "패키징", "packaging"]},
+  {"id": "semi_material", "label": "반도체 소재 / 부품", "keywords": ["반도체 소재", "반도체 재료", "반도체 기판", "소재", "기판", "substrate"]},
+  {"id": "semi_foundry", "label": "파운드리 / 위탁생산", "keywords": ["파운드리", "foundry", "위탁생산", "tsmc", "수탁"]},
+  {"id": "semi_cluster", "label": "반도체 클러스터 / 투자", "keywords": ["반도체 클러스터", "클러스터", "반도체 투자", "fab", "증설", "공장"]}
+ ],
+ "datacenter": [
+  {"id": "dc_power", "label": "데이터센터 전력 수요", "keywords": ["데이터센터 전력", "전력 수요", "버스덕트", "전력망", "power demand"]},
+  {"id": "dc_cloud", "label": "클라우드 / 서버", "keywords": ["클라우드", "cloud", "서버", "server", "nhn 클라우드", "msft", "azure"]},
+  {"id": "dc_build", "label": "데이터센터 건설 / 수주", "keywords": ["데이터센터 건설", "floating data", "수주", "구축", "프로젝트"]}
+ ],
+ "power_energy": [
+  {"id": "pe_grid", "label": "전력 인프라 / 전력망", "keywords": ["전력 인프라", "전력망", "power infrastructure", "grid", "송전", "북미 전력", "전선"]},
+  {"id": "pe_nuclear", "label": "원전 / 원자력", "keywords": ["원전", "원자력", "nuclear", "smr", "발전소"]},
+  {"id": "pe_renew", "label": "재생에너지 / 태양광·풍력", "keywords": ["태양광", "풍력", "renewable", "solar", "wind", "재생에너지", "신재생"]},
+  {"id": "pe_storage", "label": "에너지 저장 / ESS·배터리", "keywords": ["energy storage", "ess", "battery storage", "eos energy", "에너지 저장"]}
+ ],
+ "geopolitics": [
+  {"id": "geo_iran", "label": "이란 / 중동 분쟁", "keywords": ["iran", "이란", "iran war", "iran ceasefire", "israel", "이스라엘", "ceasefire", "휴전"]},
+  {"id": "geo_mideast", "label": "중동 시장 / 수출", "keywords": ["중동", "middle east", "사우디", "saudi", "uae", "아랍에미리트", "중동 개국"]}
+ ],
+ "ev_battery": [
+  {"id": "ev_battery_cell", "label": "배터리 / 2차전지", "keywords": ["배터리", "battery", "2차전지", "이차전지", "전고체", "solid state", "양극재", "음극재"]},
+  {"id": "ev_lithium", "label": "리튬 / 원자재", "keywords": ["리튬", "lithium", "코발트", "cobalt", "니켈", "nickel"]},
+  {"id": "ev_charge", "label": "전기차 / 충전", "keywords": ["전기차", "충전", "charging", "tesla", "테슬라"]},
+  {"id": "ev_supply", "label": "배터리 공급망 / 동맹", "keywords": ["공급망", "supply chain", "배터리 동맹", "lg에너지솔루션", "삼성sdi", "ess"]}
+ ],
+ "defense": [
+  {"id": "def_export", "label": "방산 수출 / 전시회", "keywords": ["방산 수출", "방산전시회", "유로사토리", "자주포", "수출", "arms"]},
+  {"id": "def_aero", "label": "항공우주 / 방산", "keywords": ["aerospace", "항공우주", "한화에어로", "현대로템", "kf-21", "missile", "미사일"]}
+ ],
+ "ma": [
+  {"id": "ma_takeover", "label": "인수 / 적대적 M&A", "keywords": ["takeover", "인수", "acquisition", "unsolicited", "적대적", "지분인수"]},
+  {"id": "ma_merger", "label": "합병 / 통합", "keywords": ["합병", "merger", "통합", "아시아나항공 합병", "consolidation"]}
+ ],
+ "realestate": [
+  {"id": "re_construct", "label": "건설 / 수주", "keywords": ["건설", "construction", "engineering", "시공", "수주", "현대건설"]},
+  {"id": "re_machine", "label": "건설기계 / 굴착기", "keywords": ["건설기계", "굴착기", "excavator", "hd건설기계"]},
+  {"id": "re_reit", "label": "부동산 / 리츠", "keywords": ["부동산", "real estate", "리츠", "reit", "분양", "주택", "housing"]}
+ ],
+ "regulation": [
+  {"id": "reg_ftc", "label": "공정위 / 갑질 제재", "keywords": ["공정위", "공정거래", "갑질", "시정명령", "과징금", "antitrust", "반독점"]},
+  {"id": "reg_sanction", "label": "제재 / 규제 완화", "keywords": ["제재", "sanction", "규제 완화", "규제 해소", "규제특례"]}
+ ]
+}
