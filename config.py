@@ -50,6 +50,10 @@ NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")
 # SEC asks for a contactable User-Agent ("app email"); without it data.sec.gov 403s.
 EDGAR_USER_AGENT = os.environ.get("EDGAR_USER_AGENT", "archivibe-skg archivibe.sw.1@gmail.com")
 DART_API_KEY = os.environ.get("DART_API_KEY", "")  # empty => DART fetcher disabled
+# Naver search API (free key, 25k/day) — cleaner KR news than Google (originallink = real
+# publisher, so whitelisting by outlet is precise). Empty => Naver fetcher disabled.
+NAVER_CLIENT_ID = os.environ.get("NAVER_CLIENT_ID", "")
+NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
 # Loop goal: keep accumulating issuer/claim nodes until the graph reaches this size.
 N_NODES_TARGET = int(os.environ.get("SKG_N_NODES_TARGET", "500"))

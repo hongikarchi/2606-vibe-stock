@@ -33,7 +33,7 @@ from skg.extract.news_rules import extract_from_headline
 from skg.models import Claim, Document, Mention, Source
 from skg.sources.dart import DartFetcher
 from skg.sources.market import MarketFetcher
-from skg.sources.news import NewsFetcher
+from skg.sources.news import NewsFetcher, NaverNewsFetcher, is_quality_outlet
 from skg.database import make_repo
 
 TOP_N = int(os.environ.get("SKG_KR_TOP_N", "300"))
@@ -72,18 +72,32 @@ def main() -> None:
     repo.write_price_series(series)
     print(f"[kr] {len(series)} KR price series")
 
-    # 4) Korean news — two-track
+    # 4) Korean news — two-track. Google News (broad) + Naver (cleaner; originallink = real
+    #    publisher so we whitelist by outlet). Same node via Korean name; dedup by doc_id/text.
     fetcher = NewsFetcher()
+    naver = None
+    if cfg.NAVER_CLIENT_ID and cfg.NAVER_CLIENT_SECRET:
+        naver = NaverNewsFetcher(cfg.NAVER_CLIENT_ID, cfg.NAVER_CLIENT_SECRET)
+        print("[kr] Naver search enabled (1군 한국 언론만 화이트리스트)")
     news_corps = corps[:NEWS_TOP_N]
     raw_docs: list[dict] = []
+    naver_kept = naver_dropped = 0
     for i, c in enumerate(news_corps):
         iid = f"DART{c['corp_code']}"
         # query by Korean name AND English name -> both land on the SAME node (cross-lingual)
         raw_docs.extend(fetcher.fetch_company_news(iid, c["corp_name"], as_of, lang="ko"))
         if c.get("corp_eng_name"):
             raw_docs.extend(fetcher.fetch_company_news(iid, c["corp_eng_name"], as_of, lang="en"))
+        if naver:  # Naver KR news, whitelisted to vetted press only
+            for d in naver.fetch_company_news(fetcher, iid, c["corp_name"], as_of):
+                if is_quality_outlet(d["_outlet"]):
+                    raw_docs.append(d); naver_kept += 1
+                else:
+                    naver_dropped += 1
         if (i + 1) % 50 == 0:
             print(f"[kr] news {i+1}/{len(news_corps)}  docs={len(raw_docs)}")
+    if naver:
+        print(f"[kr] Naver: kept {naver_kept} (1군 언론), dropped {naver_dropped} (비화이트리스트)")
     macro_docs = fetcher.fetch_macro_news(as_of, lang="ko")
     raw_docs.extend(macro_docs)
     print(f"[kr] fetched {len(raw_docs)} KR articles ({len(macro_docs)} 시황/거시)")

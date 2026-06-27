@@ -57,9 +57,10 @@ MACRO_TOPICS_KR = [
 
 
 def _strip_html(s: str) -> str:
-    """RSS descriptions carry HTML + entities; flatten to readable text."""
+    """RSS/Naver descriptions carry HTML tags + entities; flatten to readable text."""
+    import html as _html
     s = re.sub(r"<[^>]+>", " ", s)
-    s = s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    s = _html.unescape(s)  # &quot; &#39; &amp; ... -> real chars
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -89,6 +90,9 @@ QUALITY_OUTLETS = [
     "서울경제", "머니투데이", "이데일리", "한겨레", "중앙일보", "동아일보", "조선일보",
     "jtbc", "sbs", "kbs", "mbc", "뉴시스", "daum", "네이트", "파이낸셜뉴스", "아시아경제",
     "헤럴드경제", "전자신문", "지디넷", "비즈워치", "더벨", "인포맥스",
+    # major KR wires/dailies confirmed via Naver originallink (real publishers, not portals)
+    "뉴스1", "문화일보", "경향신문", "서울신문", "ytn", "비즈니스포스트", "디지털타임스",
+    "한국경제tv", "mbn", "kbs", "한겨레",
 ]
 
 
@@ -232,3 +236,75 @@ def _parse_rss_date(s: str) -> str | None:
     if mon not in _MONTHS:
         return None
     return f"{year}-{_MONTHS[mon]}-{int(day):02d}T{hh}:{mm}:{ss}"
+
+
+# Naver originallink domain -> Korean publisher name. The API gives the real publisher URL
+# (unlike Google's portal-redirect URLs), so we map domain -> outlet for precise whitelisting.
+_KR_DOMAIN_PUBLISHER = {
+    "mk.co.kr": "매일경제", "hankyung.com": "한국경제", "yna.co.kr": "연합뉴스",
+    "sedaily.com": "서울경제", "mt.co.kr": "머니투데이", "edaily.co.kr": "이데일리",
+    "hani.co.kr": "한겨레", "joongang.co.kr": "중앙일보", "donga.com": "동아일보",
+    "chosun.com": "조선일보", "biz.chosun.com": "조선비즈", "fnnews.com": "파이낸셜뉴스",
+    "asiae.co.kr": "아시아경제", "heraldcorp.com": "헤럴드경제", "etnews.com": "전자신문",
+    "newsis.com": "뉴시스", "news1.kr": "뉴스1", "newspim.com": "뉴스핌",
+    "munhwa.com": "문화일보", "khan.co.kr": "경향신문", "seoul.co.kr": "서울신문",
+    "sbs.co.kr": "SBS", "kbs.co.kr": "KBS", "imbc.com": "MBC", "jtbc.co.kr": "JTBC",
+    "ytn.co.kr": "YTN", "zdnet.co.kr": "지디넷", "thebell.co.kr": "더벨",
+    "businesspost.co.kr": "비즈니스포스트", "dt.co.kr": "디지털타임스",
+    "wowtv.co.kr": "한국경제TV", "infomax.co.kr": "인포맥스",
+}
+
+
+def _publisher_from_url(url: str) -> str:
+    """originallink URL -> Korean publisher name (or the bare domain if unknown)."""
+    dom = re.sub(r"https?://(www\.)?", "", url or "").split("/")[0].lower()
+    for d, pub in _KR_DOMAIN_PUBLISHER.items():
+        if dom.endswith(d):
+            return pub
+    return dom or "unknown"
+
+
+class NaverNewsFetcher:
+    """Korean news via the official Naver search API (free key). Cleaner than Google KR:
+    the response's `originallink` is the REAL publisher URL, so we map it to the outlet and
+    whitelist precisely. Emits the same `it` dicts NewsFetcher._to_doc consumes."""
+
+    def __init__(self, client_id: str, client_secret: str, min_interval: float = 0.15,
+                 max_items: int = 10):
+        if not client_id or not client_secret:
+            raise ValueError("Naver keys required (cfg.NAVER_CLIENT_ID/SECRET)")
+        self.headers = {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
+        self.min_interval = min_interval
+        self.max_items = max_items
+        self._last = 0.0
+
+    def _search(self, query: str) -> list[dict]:
+        wait = self.min_interval - (time.monotonic() - self._last)
+        if wait > 0:
+            time.sleep(wait)
+        url = ("https://openapi.naver.com/v1/search/news.json?query="
+               + urllib.parse.quote(query) + f"&display={self.max_items}&sort=sim")
+        try:
+            data = urllib.request.urlopen(
+                urllib.request.Request(url, headers=self.headers), timeout=15).read()
+            items = __import__("json").loads(data).get("items", [])
+        except Exception:  # noqa: BLE001
+            self._last = time.monotonic()
+            return []
+        self._last = time.monotonic()
+        out = []
+        for it in items:
+            title = _strip_html(it.get("title", ""))
+            link = it.get("originallink") or it.get("link", "")  # prefer real publisher URL
+            if not title or not link:
+                continue
+            out.append({"title": title, "link": link, "pubDate": it.get("pubDate", ""),
+                        "outlet": _publisher_from_url(it.get("originallink", "")),
+                        "summary": _strip_html(it.get("description", ""))})
+        return out
+
+    def fetch_company_news(self, fetcher_for_to_doc, issuer_id, name, knowledge_time):
+        """Reuse NewsFetcher._to_doc for output shape. fetcher_for_to_doc = a NewsFetcher."""
+        return [fetcher_for_to_doc._to_doc(it, knowledge_time, subject_id=issuer_id,
+                                           subject_kind="issuer", subject_surface=name, lang="ko")
+                for it in self._search(name)]
