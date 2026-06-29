@@ -127,7 +127,7 @@ PPR_ALPHA = 0.85
 # "past" demonstrates survivorship (a delisted issuer reappears in the past view).
 # (Passed via SQL WHERE knowledge_time <= as_of; ISO-8601 strings sort lexically.)
 # ---------------------------------------------------------------------------
-AS_OF_NOW = "2026-06-23T00:00:00"
+AS_OF_NOW = "2026-06-29T00:00:00"
 AS_OF_PAST = "2023-01-15T00:00:00"
 
 # Guardrail: vocabulary that must NEVER appear in the exported vault (no trading signal).

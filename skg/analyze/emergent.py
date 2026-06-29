@@ -32,12 +32,22 @@ over per via amp here first amid after before how why what when who will been mo
 such only also they them their there then both each many much very upon about above against
 그리고 그러나 그런데 또한 위해 통해 관련 대한 이번 지난 오늘 내일 올해 작년 기자 단독 종합 속보
 무단 전재 배포 금지 라며 면서 했다 한다 이라고 라고 으로 에서 에게 부터 까지 보다 처럼
+# KO reporting/boilerplate verbs + scaffolding (frequent-but-below-df_hi, so DF can't demote them):
+밝혔다 밝혔 있다 없다 따르면 위한 위해서 규모 억원 만원 조원 달러 이날 오는 주요 대해 이어 함께
+것으로 것이라고 전망이다 예정이다 계획이다 나타났다 보인다 가운데 대비 기록했다 기록 달성 추진 방침
+# generic non-topical nouns (geography/scale/recency — not a market theme, like the EN korea/year entries):
+사업 국내 미국 핵심 그룹 최근 최대 속도 속도를 규모의 가장 관련해 통해서 이상 이하 수준 계획 전략
 
 inc corp ltd group co plc llc holdings holding company corporation
 news update report says said say according reuters bloomberg
 chosunbiz marketscreener newswire ked quiver simplywall tradingview tradingkey seeking alpha
 zacks benzinga motley investing insider gurufocus stocktitan stockstory directorstalk globenewswire
 businesswire prnewswire finance yahoo nasdaq nyse krx kosdaq daum mtn
+tikr barchart stocktwits fool wallst tipranks marketbeat
+# EN headline-template / scaffolding fragments that co-occur with everything (the noise hubs):
+hits form valuation upside despite undervalued overvalued fair street wall time june july sahm hoc
+canada plan under maintains rating reiterates lowers raises sets initiates coverage
+next down one out way back off set get put run top end big key two three
 매일경제 한국경제 서울경제 머니투데이 이데일리 연합뉴스 조선비즈 인포맥스 뉴스핌 파이낸셜
 
 year month quarter day week stock stocks shares share price prices market markets value

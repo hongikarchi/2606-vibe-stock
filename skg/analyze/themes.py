@@ -24,7 +24,7 @@ THEMES = {
     "gold":          ("금 / 안전자산", ["금값", "gold price", "금 시세", "안전자산", "safe haven", "귀금속"]),
     "trump":         ("트럼프 / 美정치", ["트럼프", "trump", "백악관", "white house", "행정명령", "executive order"]),
     "geopolitics":   ("지정학 / 중동", ["이란", "iran", "중동", "middle east", "israel", "이스라엘", "전쟁", "war", "분쟁", "conflict", "우크라이나", "ukraine", "지정학", "geopolit"]),
-    "trade":         ("관세 / 무역", ["관세", "tariff", "trade war", "무역", "수출규제", "export control", "통상"]),
+    "trade":         ("관세 / 무역", ["관세", "tariff", "trade war", "무역", "수출규제", "export control", "통상마찰", "통상분쟁"]),
     "earnings":      ("실적", ["실적", "earnings", "매출", "revenue", "영업이익", "operating profit", "guidance", "어닝"]),
     "ma":            ("인수합병 M&A", ["인수", "합병", "M&A", "acquisition", "merger", "지분인수", "takeover"]),
     "supply":        ("공급망 / 수급", ["공급", "supply", "부족", "shortage", "수급", "공급망", "supply chain", "증설", "capacity"]),

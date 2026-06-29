@@ -7,13 +7,22 @@ not hidden in a 2GB encoder. Limitations (KR slang gaps, sarcasm) are disclosed 
 from __future__ import annotations
 
 BULLISH = [
-    "급등", "호재", "사상최대", "상한가", "대박", "강세", "수주는 호재",
+    "급등", "호재", "사상최대", "상한가", "대박", "강세",
+    # KR directional verbs whose negated/opposite form is rare in practice (precision-biased):
+    "수주", "출시", "신고가", "돌파", "흑자전환", "최대 실적",
     "surge", "beat", "record", "upgrade", "breakthrough", "rally", "jump",
 ]
 BEARISH = [
     "급락", "우려", "적자", "소송", "감액", "분식", "하락", "악재", "리스크",
     "미치지 못", "불확실", "경고", "배제할 수 없",
+    # KR event/reaction verbs that are unambiguously negative (rare positive sense):
+    "사망", "제재", "횡령", "적자전환", "하향", "약세", "부진", "폭락", "상장폐지",
+    # negative qualifiers that neutralize an otherwise-bullish event verb
+    # (e.g. '수주 취소', '계약 철회' -> net neutral, not bullish):
+    "취소", "철회", "무산", "반려",
     "risk", "probe", "lawsuit", "downgrade", "fraud", "loss", "warns", "plunge",
+    # EN price-reaction verbs (so 'beat but stock fell' nets bearish, not bullish):
+    "falls", "falling", "declines", "decline", "slumps", "tumbles", "plunges", "sell-off",
 ]
 # tokens that flip or weaken the polarity of a nearby claim (grounding §6)
 NEGATION = ["아니", "없", "부인", "반박", "overblown", "denied", "refuted", "false", "not", "no"]

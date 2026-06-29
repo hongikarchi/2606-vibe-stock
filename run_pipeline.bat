@@ -40,6 +40,10 @@ python pipelines\market_state_pull.py >> "%LOG%" 2>&1
 REM keep index-membership tags current (non-destructive; never auto-prunes in the cron) ----
 echo [run] tag_universe >> "%LOG%"
 python pipelines\tag_universe.py     >> "%LOG%" 2>&1
+REM collapse duplicate news Claims/Mentions BEFORE counting (idempotent: keeps lowest claim_id
+REM per content group, no-op once deduped). Stops the ~1.22x count inflation accumulating. ----
+echo [run] dedup_news >> "%LOG%"
+python pipelines\dedup_news.py       >> "%LOG%" 2>&1
 echo [run] build_themes >> "%LOG%"
 python pipelines\build_themes.py     >> "%LOG%" 2>&1
 echo [run] build_emergent >> "%LOG%"

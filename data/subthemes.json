@@ -3,21 +3,21 @@
  "ai": [
   {"id": "ai_infra", "label": "AI 인프라 / 데이터센터 투자", "keywords": ["AI 데이터센터", "AI 인프라", "AI infrastructure", "데이터센터", "data center", "hyperscaler", "GPU", "AI 컴퍼니", "AI 투자"]},
   {"id": "ai_chip", "label": "AI 반도체 / 칩", "keywords": ["AI 반도체", "AI chip", "AI semiconductor", "nvidia", "엔비디아", "TPU", "가속기", "accelerator", "neural"]},
-  {"id": "ai_bubble", "label": "AI 거품 / 과열 논란", "keywords": ["AI 거품", "AI bubble", "거품", "과열", "overvalued", "doubts", "AI doubt", "조정"]},
+  {"id": "ai_bubble", "label": "AI 거품 / 과열 논란", "keywords": ["AI 거품", "AI bubble", "거품", "과열", "AI doubt", "AI 과열"]},
   {"id": "ai_robot", "label": "AI 로봇 / 휴머노이드", "keywords": ["로봇", "robot", "humanoid", "휴머노이드", "로보틱스", "robotics", "자율"]},
   {"id": "ai_adopt", "label": "AI 도입 / 사업 전환", "keywords": ["인공지능 전환", "AI 전환", "AI 도입", "AI push", "전담 조직", "AI-powered", "생성형 AI", "AI 솔루션"]}
  ],
  "semiconductor": [
   {"id": "semi_hbm", "label": "HBM / 메모리", "keywords": ["HBM", "메모리", "memory chip", "D램", "DRAM", "낸드", "NAND", "고대역폭"]},
   {"id": "semi_equip", "label": "반도체 장비 / 소부장", "keywords": ["반도체 장비", "semiconductor equipment", "소부장", "본더", "장비", "후공정", "패키징", "packaging"]},
-  {"id": "semi_material", "label": "반도체 소재 / 부품", "keywords": ["반도체 소재", "반도체 재료", "반도체 기판", "소재", "기판", "substrate"]},
+  {"id": "semi_material", "label": "반도체 소재 / 부품", "keywords": ["반도체 소재", "반도체 재료", "반도체 기판", "FC-BGA", "포토레지스트", "CMP 슬러리", "substrate"]},
   {"id": "semi_foundry", "label": "파운드리 / 위탁생산", "keywords": ["파운드리", "foundry", "위탁생산", "tsmc", "수탁"]},
   {"id": "semi_cluster", "label": "반도체 클러스터 / 투자", "keywords": ["반도체 클러스터", "클러스터", "반도체 투자", "fab", "증설", "공장"]}
  ],
  "datacenter": [
   {"id": "dc_power", "label": "데이터센터 전력 수요", "keywords": ["데이터센터 전력", "전력 수요", "버스덕트", "전력망", "power demand"]},
   {"id": "dc_cloud", "label": "클라우드 / 서버", "keywords": ["클라우드", "cloud", "서버", "server", "nhn 클라우드", "msft", "azure"]},
-  {"id": "dc_build", "label": "데이터센터 건설 / 수주", "keywords": ["데이터센터 건설", "floating data", "수주", "구축", "프로젝트"]}
+  {"id": "dc_build", "label": "데이터센터 건설 / 수주", "keywords": ["데이터센터 건설", "데이터센터 구축", "데이터센터 수주", "데이터센터 프로젝트", "IDC 구축", "floating data"]}
  ],
  "power_energy": [
   {"id": "pe_grid", "label": "전력 인프라 / 전력망", "keywords": ["전력 인프라", "전력망", "power infrastructure", "grid", "송전", "북미 전력", "전선"]},
@@ -41,7 +41,7 @@
  ],
  "ma": [
   {"id": "ma_takeover", "label": "인수 / 적대적 M&A", "keywords": ["takeover", "인수", "acquisition", "unsolicited", "적대적", "지분인수"]},
-  {"id": "ma_merger", "label": "합병 / 통합", "keywords": ["합병", "merger", "통합", "아시아나항공 합병", "consolidation"]}
+  {"id": "ma_merger", "label": "합병", "keywords": ["합병", "merger", "기업 통합", "사업 통합", "아시아나항공 합병", "consolidation"]}
  ],
  "realestate": [
   {"id": "re_construct", "label": "건설 / 수주", "keywords": ["건설", "construction", "engineering", "시공", "수주", "현대건설"]},
