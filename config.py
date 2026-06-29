@@ -127,7 +127,12 @@ PPR_ALPHA = 0.85
 # "past" demonstrates survivorship (a delisted issuer reappears in the past view).
 # (Passed via SQL WHERE knowledge_time <= as_of; ISO-8601 strings sort lexically.)
 # ---------------------------------------------------------------------------
-AS_OF_NOW = "2026-06-29T00:00:00"
+# AS_OF_NOW: the "current" query instant. The unattended loop (run_pipeline.bat) sets
+# SKG_AS_OF_NOW to the run date each pass so the published freshness label advances with the
+# data instead of silently drifting stale. The hardcoded default keeps tests/manual runs
+# deterministic (only the cron overrides it). Bump the default when there's no cron override
+# for a long stretch. (Deeper bi-temporal fix — real ingest_time vs as_of — see DECISION_bitemporal.md.)
+AS_OF_NOW = os.environ.get("SKG_AS_OF_NOW", "2026-06-29T00:00:00")
 AS_OF_PAST = "2023-01-15T00:00:00"
 
 # Guardrail: vocabulary that must NEVER appear in the exported vault (no trading signal).

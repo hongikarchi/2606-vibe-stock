@@ -27,6 +27,11 @@ if errorlevel 1 (
 set "PYTHONIOENCODING=utf-8"
 set "SKG_STORAGE_BACKEND=neo4j"
 
+REM --- advance the "current" instant to the run date so the published freshness label tracks
+REM the data instead of drifting stale. (Python date formatting is locale-safe; batch's is not.) -
+for /f %%d in ('python -c "import datetime;print(datetime.date.today().isoformat()+'T00:00:00')"') do set "SKG_AS_OF_NOW=%%d"
+echo [env] SKG_AS_OF_NOW=%SKG_AS_OF_NOW% >> "%LOG%"
+
 REM --- 2. quantitative pass (rule-based, idempotent) ------------------------
 REM news (US). For KR news+DART set SKG_INCLUDE_KR=1 (heavier; e.g. once/day not 3x).
 echo [run] news_pull >> "%LOG%"
