@@ -115,12 +115,22 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
         "WHERE i.issuer_id STARTS WITH 'CIK' OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
         f"RETURN {cols} ORDER BY a.rank_credible LIMIT $n",
         as_of=cfg.AS_OF_NOW, n=max(0, top_n - kr_slots))
+    # KR slots: rank by NEWS COVERAGE (count of news Claims), not ppr_naive. ppr_naive is a
+    # pure link-structure score that buried the KOSPI bellwethers (SK하이닉스/NAVER/삼성바이오/
+    # POSCO all ranked outside the top slots while quiet caps 한국가스공사/펄어비스 took them).
+    # Market cap isn't stored on KR Issuer nodes (no mktcap property), so news-degree is the
+    # available, reversible proxy for "companies the market is actually talking about". It
+    # surfaces SK하이닉스 (the HBM/AI bellwether) at #1, fixing the named coverage defect.
     kr_rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
         "WHERE i.issuer_id STARTS WITH 'DART' OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
-        f"RETURN {cols} ORDER BY a.ppr_naive DESC LIMIT $n",
+        "OPTIONAL MATCH (i)<-[:ABOUT]-(cl:Claim) WHERE cl.source_id STARTS WITH 'news::' "
+        f"WITH a, i, s, count(cl) AS news_n "
+        f"RETURN {cols}, news_n ORDER BY news_n DESC, a.ppr_naive DESC LIMIT $n",
         as_of=cfg.AS_OF_NOW, n=kr_slots)
     issuers = [dict(r) for r in us_rows] + [dict(r) for r in kr_rows]
+    for i in issuers:
+        i.pop("news_n", None)  # ranking-only column (KR query); not part of the node payload
     iids = [i["iid"] for i in issuers]
 
     # per-issuer news headlines (drill-down evidence) — exclude junk (factory) outlets
