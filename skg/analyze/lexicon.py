@@ -9,7 +9,7 @@ from __future__ import annotations
 BULLISH = [
     "급등", "호재", "사상최대", "상한가", "대박", "강세",
     # KR directional verbs whose negated/opposite form is rare in practice (precision-biased):
-    "수주", "출시", "신고가", "돌파", "흑자전환", "최대 실적",
+    "수주", "출시", "신고가", "돌파", "흑자전환", "최대 실적", "체결",
     "surge", "beat", "record", "upgrade", "breakthrough", "rally", "jump",
 ]
 BEARISH = [
