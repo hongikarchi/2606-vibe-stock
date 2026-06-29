@@ -37,6 +37,10 @@ such only also they them their there then both each many much very upon about ab
 것으로 것이라고 전망이다 예정이다 계획이다 나타났다 보인다 가운데 대비 기록했다 기록 달성 추진 방침
 # generic non-topical nouns (geography/scale/recency — not a market theme, like the EN korea/year entries):
 사업 국내 미국 핵심 그룹 최근 최대 속도 속도를 규모의 가장 관련해 통해서 이상 이하 수준 계획 전략
+# KR generic-finance / connective words — parity with the EN growth/strong/development/new class
+# already listed below (these are non-topical framing verbs/nouns, NOT specific market themes).
+# Precision-biased: borderline-topical words (인프라/차세대/기술) are deliberately KEPT.
+성장 개발 기대 신규 강화 협력 경쟁력 확대 진출 추진 가속 본격
 
 inc corp ltd group co plc llc holdings holding company corporation
 news update report says said say according reuters bloomberg
@@ -49,11 +53,13 @@ hits form valuation upside despite undervalued overvalued fair street wall time 
 canada plan under maintains rating reiterates lowers raises sets initiates coverage
 next down one out way back off set get put run top end big key two three
 매일경제 한국경제 서울경제 머니투데이 이데일리 연합뉴스 조선비즈 인포맥스 뉴스핌 파이낸셜
+아시아경제 뉴시스 뉴스1 헤럴드경제 전자신문 한겨레 아주경제 디지털타임스 비즈워치
 
 year month quarter day week stock stocks shares share price prices market markets value
 million billion trillion percent investor investors investment trading trade fund analyst
 results result earnings revenue profit growth high low strong weak best top gain gains loss
 target buy sell hold rating upgrade downgrade business south korean korea ceo cfo chief
+financial international global domestic industry sector company firm maker
 실적 매출 영업이익 주가 종목 증시 코스피 코스닥 투자 시장 기업 상승 하락 강세 약세 전망 분석
 # earnings-report / press-release SCAFFOLDING words (non-topical, appear across all outlets):
 eps estimates estimate forecast guidance consensus reports report reported announces announced
