@@ -41,6 +41,8 @@ such only also they them their there then both each many much very upon about ab
 # already listed below (these are non-topical framing verbs/nouns, NOT specific market themes).
 # Precision-biased: borderline-topical words (인프라/차세대/기술) are deliberately KEPT.
 성장 개발 기대 신규 강화 협력 경쟁력 확대 진출 추진 가속 본격
+# more generic connectives surfacing from fresh news (precision-biased; 전환/차세대/기술 KEPT as borderline-topical):
+있는 본격화 미래 해외 기존 대표 나선다 가운데 위해서 통한 따른 등의 등을 같은 모든 다양한 새로운
 
 inc corp ltd group co plc llc holdings holding company corporation
 news update report says said say according reuters bloomberg
