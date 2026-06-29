@@ -60,6 +60,15 @@ python pipelines\build_theme_view.py >> "%LOG%" 2>&1
 echo [run] export_artifacts >> "%LOG%"
 python pipelines\export_artifacts.py >> "%LOG%" 2>&1
 
+REM --- gate: never ship label != content / empty graph. Block commit on failure. -----------
+echo [run] verify_artifacts >> "%LOG%"
+python pipelines\verify_artifacts.py >> "%LOG%" 2>&1
+if errorlevel 1 (
+  echo [gate] FAIL - artifacts did not pass invariants; skipping commit/push >> "%LOG%"
+  echo [gate] FAIL - not shipping. See log.
+  goto :done
+)
+
 REM --- 3. commit + push only if the app data actually changed ----------------
 git add web/public/data >> "%LOG%" 2>&1
 git diff --cached --quiet web/public/data
@@ -72,5 +81,6 @@ if errorlevel 1 (
   echo [git] no data change - skip commit >> "%LOG%"
 )
 
+:done
 echo [done] %DATE% %TIME% >> "%LOG%"
 endlocal
