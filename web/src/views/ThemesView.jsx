@@ -47,7 +47,11 @@ function TrendChart({ trend }) {
 }
 
 const CLUSTER_PREFIX = "cl::";
-const ZOOM_OPEN = 0.75; // scale above which parent blobs auto-expand into children
+// fallback open-threshold (used only until the post-fit scale is measured). The live threshold
+// is set RELATIVE to the fit scale (see ZOOM_OPEN_MULT) so it's always reachable in a few ticks.
+const ZOOM_OPEN = 0.35;
+// expand once the user zooms to ~1.3x the resting (fit) scale — i.e. a small, deliberate zoom-in.
+const ZOOM_OPEN_MULT = 1.3;
 
 export default function ThemesView({ useArtifact }) {
   const data = useArtifact("themes");
@@ -114,23 +118,33 @@ export default function ThemesView({ useArtifact }) {
     const collapseAll = () => parents.forEach((p) => clusterParent(p.id));
 
     let collapsed = true;       // current LOD state; only act on threshold CROSSINGS
+    // open-threshold is set RELATIVE to the actual post-fit scale, not a fixed constant: the
+    // fit scale depends on graph size + viewport, and a fixed 0.75 was unreachable in a few
+    // wheel ticks (graph fit at ~0.26, so it looked frozen). openAt = fitScale * ZOOM_OPEN_MULT
+    // always sits a few ticks above the start, so a small zoom-in expands. Falls back to a
+    // constant until the fit lands.
+    let openAt = ZOOM_OPEN;     // sensible default until we measure the fit
     net.once("stabilizationIterationsDone", () => {
       collapseAll();            // start collapsed: 부모 blob만 보임
       collapsed = true;
       net.fit({ animation: true });
     });
+    // after the fit animation settles, anchor the threshold just above the resting scale
+    net.on("animationFinished", () => {
+      if (collapsed) openAt = net.getScale() * ZOOM_OPEN_MULT;
+    });
 
-    // zoom-driven level of detail: cross ZOOM_OPEN going up -> expand ALL blobs to children;
+    // zoom-driven level of detail: cross openAt going up -> expand ALL blobs to children;
     // cross going down -> re-collapse. Act once per crossing (not every wheel tick) to avoid
     // open/close fighting itself. (the user's "줌아웃=blob, 줌인=세부 노드")
     net.on("zoom", (p) => {
-      if (p.scale >= ZOOM_OPEN && collapsed) {
+      if (p.scale >= openAt && collapsed) {
         collapsed = false;
         parents.forEach((par) => {
           const cid = CLUSTER_PREFIX + par.id;
           if (net.isCluster(cid)) { try { net.openCluster(cid); } catch (e) { /* none */ } }
         });
-      } else if (p.scale < ZOOM_OPEN && !collapsed) {
+      } else if (p.scale < openAt && !collapsed) {
         collapsed = true;
         collapseAll();
       }
