@@ -25,7 +25,11 @@ THEMES = {
     "trump":         ("트럼프 / 美정치", ["트럼프", "trump", "백악관", "white house", "행정명령", "executive order"]),
     "geopolitics":   ("지정학 / 중동", ["이란", "iran", "중동", "middle east", "israel", "이스라엘", "전쟁", "war", "분쟁", "conflict", "우크라이나", "ukraine", "지정학", "geopolit"]),
     "trade":         ("관세 / 무역", ["관세", "tariff", "trade war", "무역", "수출규제", "export control", "통상마찰", "통상분쟁"]),
-    "earnings":      ("실적", ["실적", "earnings", "매출", "revenue", "영업이익", "operating profit", "guidance", "어닝"]),
+    # NOTE: '실적'(earnings) removed as a theme — it is an EVENT TYPE (every company reports
+    # earnings), not a subject. Measured: it spanned 259/302 sectors (vs 반도체 83), 88% of its
+    # headlines were earnings-only valuation boilerplate ("Price to earnings forward… TradingView"),
+    # and 실적/earnings/매출 are ALREADY in the emergent non-topical stoplist. Earnings-driven moves
+    # still surface under the real subject themes (AI/반도체/…). See THEME_CLASSIFICATION.md.
     "ma":            ("인수합병 M&A", ["인수", "합병", "M&A", "acquisition", "merger", "지분인수", "takeover"]),
     "supply":        ("공급망 / 수급", ["공급", "supply", "부족", "shortage", "수급", "공급망", "supply chain", "증설", "capacity"]),
     "ev_battery":    ("전기차 / 배터리", ["전기차", "EV", "배터리", "battery", "2차전지", "이차전지", "충전", "리튬", "lithium"]),
