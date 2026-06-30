@@ -31,7 +31,12 @@ THEMES = {
     # and 실적/earnings/매출 are ALREADY in the emergent non-topical stoplist. Earnings-driven moves
     # still surface under the real subject themes (AI/반도체/…). See THEME_CLASSIFICATION.md.
     "ma":            ("인수합병 M&A", ["인수", "합병", "M&A", "acquisition", "merger", "지분인수", "takeover"]),
-    "supply":        ("공급망 / 수급", ["공급", "supply", "부족", "shortage", "수급", "공급망", "supply chain", "증설", "capacity"]),
+    # '공급망/수급': dropped the over-broad tokens. bare 공급/supply = generic "provide/deliver"
+    # (전기 공급, 변압기 공급계약, even the company "Tractor Supply") — 46% of supply-only headlines
+    # were this, not supply-chain. 수급 was 84% 주식 수급 (외국인/기관 순매수 flows = trading-signal
+    # content the no-signal stance forbids), not goods supply/demand. 부족 = generic "lack". Kept the
+    # qualified supply-chain terms only. (measured; see THEME_CLASSIFICATION.md)
+    "supply":        ("공급망 / 증설", ["공급망", "supply chain", "shortage", "증설", "capacity"]),
     "ev_battery":    ("전기차 / 배터리", ["전기차", "EV", "배터리", "battery", "2차전지", "이차전지", "충전", "리튬", "lithium"]),
     "regulation":    ("규제 / 제재", ["규제", "regulation", "제재", "sanction", "antitrust", "반독점", "과징금"]),
     "inflation":     ("물가 / 인플레이션", ["물가", "inflation", "인플레", "CPI", "소비자물가", "deflation"]),
