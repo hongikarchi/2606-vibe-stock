@@ -163,14 +163,21 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
         "WHERE i.issuer_id IN $iids AND cl.source_id STARTS WITH 'news::' "
         "RETURN i.issuer_id AS iid, cl.source_span AS h, cl.event_time AS t, src.name AS outlet",
         iids=iids)
-    by_issuer = {}
+    from collections import defaultdict as _dd
+    from skg.analyze.headline_dedup import clean_headline, collapse_groups
+    raw_by_issuer = _dd(list)
     for r in news:
-        h = r["h"]
-        if not h or not is_quality_outlet(r["outlet"]):  # surface only vetted press
+        if not r["h"] or not is_quality_outlet(r["outlet"]):  # surface only vetted press
             continue
-        st = lexicon.stance_of(h)
-        ch = (h.split(" - ")[0] if " - " in h[-40:] else h).strip()[:110]
-        by_issuer.setdefault(r["iid"], []).append(((r["t"] or "")[:10], ch, st))
+        raw_by_issuer[r["iid"]].append({"text": clean_headline(r["h"], r["outlet"]),
+                                        "date": (r["t"] or "")[:10], "ent": None})
+    by_issuer = {}
+    for iid, recs in raw_by_issuer.items():
+        # collapse the N-outlet syndication of one story to ONE displayed headline; stance
+        # and news_count become per-story, not per-outlet-copy
+        for g in collapse_groups(recs):
+            st = lexicon.stance_of(g["text"])
+            by_issuer.setdefault(iid, []).append((g["date"], g["text"][:110], st))
 
     # sector members (peers) — for "same-sector companies"
     peers = {}
@@ -189,13 +196,15 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
             sc["bull" if st == "bullish" else "bear" if st == "bearish" else "neut"] += 1
             for th in themes_in(h):
                 themes[th] = themes.get(th, 0) + 1
-        # top headlines: stance-bearing first, then recent
+        # top headlines: stance-bearing first, then recent; diverse() drops near-repeats
+        # of an already-shown story (multi-day re-coverage)
+        from skg.analyze.headline_dedup import diverse
         hs_sorted = sorted(hs, reverse=True)
-        stanced = [{"d": d, "t": h, "s": s} for d, h, s in hs_sorted if s != "neutral"][:6]
+        stanced = [{"d": d, "t": h, "s": s} for d, h, s in hs_sorted if s != "neutral"]
         neutral = [{"d": d, "t": h, "s": s} for d, h, s in hs_sorted if s == "neutral"]
         i["news_count"] = len(hs)
         i["stance"] = sc
-        i["heads"] = stanced + neutral[: max(0, 6 - len(stanced))]
+        i["heads"] = diverse(stanced + neutral, 6)
         i["themes"] = [{"id": t, "label": label_of(t), "n": n}
                        for t, n in sorted(themes.items(), key=lambda x: -x[1])[:5]]
         i["peers"] = peers.get(i["iid"], [])

@@ -53,12 +53,6 @@ def _decay_weight(date_str: str) -> float:
         return 0.3  # undated -> low but nonzero
 
 
-def _clean(h: str) -> str:
-    # drop the trailing " - 출처" Google News appends, collapse whitespace
-    h = h.split(" - ")[0] if " - " in h[-40:] else h
-    return " ".join(h.split())[:120]
-
-
 def _load_summaries():
     p = cfg.ROOT / "data" / "theme_summaries.json"
     if not p.exists():
@@ -80,11 +74,16 @@ def compute_theme_data(repo) -> dict:
         "OPTIONAL MATCH (cl)-[:ABOUT]->(e) WHERE e:Issuer OR e:MacroIndicator "
         "RETURN cl.source_span AS h, cl.event_time AS t, "
         "coalesce(e.name, e.indicator_id) AS ent, src.name AS outlet")
-    items = [(r["h"], (r["t"] or "")[:10], r["ent"]) for r in rows
-             if r["h"] and is_quality_outlet(r["outlet"])]  # allow-list: vetted press only
-    print(f"[view] {len(items)} headlines (vetted press only)")
+    from skg.analyze.headline_dedup import clean_headline, collapse_groups
+    recs = [{"text": clean_headline(r["h"], r["outlet"]), "date": (r["t"] or "")[:10],
+             "ent": r["ent"]}
+            for r in rows if r["h"] and is_quality_outlet(r["outlet"])]  # vetted press only
+    # one story syndicated by N outlets = ONE story everywhere downstream (freq, heat,
+    # entity n, edge w, ThemeDay, heads); its distinct entities all keep attribution
+    groups = collapse_groups(recs)
+    print(f"[view] {len(recs)} headlines -> {len(groups)} unique stories (near-dups collapsed)")
     theme_entities = defaultdict(Counter)
-    entity_total = Counter()  # overall mentions per entity (for LIFT ranking)
+    entity_total = Counter()  # overall story count per entity (for LIFT ranking)
 
     freq = Counter()
     wfreq = defaultdict(float)         # DECAY-weighted theme freq ("지금 열기")
@@ -99,15 +98,16 @@ def compute_theme_data(repo) -> dict:
     # (additive temporal layer for decay/trend/accumulation).
     theme_day = defaultdict(lambda: {"count": 0, "bull": 0, "bear": 0, "neut": 0})
 
-    for h, date, ent in items:
-        if ent:
+    for g in groups:
+        full, date, ents = g["text"], g["date"], g["ents"]
+        for ent in ents:
             entity_total[ent] += 1
-        ts = themes_in(h)  # parents AND child sub-themes
+        ts = themes_in(full)  # parents AND child sub-themes (post-clean: outlet names can't match)
         if not ts:
             continue
-        st = lexicon.stance_of(h)
-        ch = _clean(h)
-        w = _decay_weight(date)   # recent headline ~1.0, old ~0
+        st = lexicon.stance_of(full)
+        ch = " ".join(full.split())[:120]
+        w = _decay_weight(date)   # recent story ~1.0, old ~0
         sday = date[:10] if date else ""
         for t in ts:
             freq[t] += 1
@@ -118,7 +118,7 @@ def compute_theme_data(repo) -> dict:
                 b = theme_day[(t, sday)]
                 b["count"] += 1
                 b["bull" if st == "bullish" else "bear" if st == "bearish" else "neut"] += 1
-            if ent:
+            for ent in ents:
                 theme_entities[t][ent] += 1
                 if len(te_heads[(t, ent)]) < 30:
                     te_heads[(t, ent)].append((date, ch, st))
@@ -135,17 +135,14 @@ def compute_theme_data(repo) -> dict:
 
     # keep top headlines for the panel: PRIORITIZE stance-bearing ones (돌파/우려 are the
     # informative development-vs-bubble signals), then fill with recent neutral ones.
+    # diverse() drops near-repeats of an already-shown story (multi-day re-coverage).
+    from skg.analyze.headline_dedup import diverse
+
     def top(hs):
-        seen = set()
         stanced, neutral = [], []
         for d, t, s in sorted(hs, reverse=True):
-            if t in seen:
-                continue
-            seen.add(t)
             (neutral if s == "neutral" else stanced).append({"d": d, "t": t, "s": s})
-        out = stanced[:MAX_HEADLINES]
-        out += neutral[: max(0, MAX_HEADLINES - len(out))]
-        return out
+        return diverse(stanced + neutral, MAX_HEADLINES)
 
     nodes = []
     maxwf = max(wfreq.values()) if wfreq else 1
