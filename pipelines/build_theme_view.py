@@ -112,7 +112,7 @@ def compute_theme_data(repo) -> dict:
         ch = " ".join(full.split())[:120]
         w = _decay_weight(date)   # recent story ~1.0, old ~0
         sday = date[:10] if date else ""
-        for t in ts:
+        for t in sorted(ts):   # set order is hash-randomized — sort for deterministic dicts
             freq[t] += 1
             wfreq[t] += w
             node_stance[t][st] += 1
@@ -254,6 +254,7 @@ def compute_theme_data(repo) -> dict:
         })
     edges.sort(key=lambda e: (-e["w"], e["a"], e["b"]))
     edges = edges[:MAX_EDGES]
+    nodes.sort(key=lambda n: n["id"])   # byte-identical artifact across runs
 
     # 이슈→종목→가격: real daily move + 52w position per related entity (export-time join;
     # PriceSeries is refreshed every cron so this costs no new fetches)

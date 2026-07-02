@@ -50,8 +50,9 @@ const CLUSTER_PREFIX = "cl::";
 // fallback open-threshold (used only until the post-fit scale is measured). The live threshold
 // is set RELATIVE to the fit scale (see ZOOM_OPEN_MULT) so it's always reachable in a few ticks.
 const ZOOM_OPEN = 0.35;
-// expand once the user zooms to ~1.3x the resting (fit) scale — i.e. a small, deliberate zoom-in.
-const ZOOM_OPEN_MULT = 1.3;
+// expand at ~1.6x the resting scale — with 75+ nodes a casual wheel tick must not detonate
+// all clusters at once (was 1.3 at 51 nodes).
+const ZOOM_OPEN_MULT = 1.6;
 
 export default function ThemesView({ useArtifact }) {
   const data = useArtifact("themes");
@@ -72,14 +73,18 @@ export default function ThemesView({ useArtifact }) {
     const children = data.nodes.filter((n) => n.level === 1);
     const maxHeat = Math.max(...data.nodes.map((n) => n.heat ?? n.freq), 1);
 
+    // 급상승 상위 3 노드는 그래프에서도 금색 링 + ▲ 라벨 (인사이트 우선 시각 위계)
+    const riserIds = new Set((data.rising || []).slice(0, 3).map((r) => r.id));
     // build all nodes (parents + children); children carry their parent's color
     const visNodes = data.nodes.map((n) => {
       const col = n.level === 0 ? (parentColor[n.id] || "#789") : (parentColor[n.parent] || "#789");
+      const hot = riserIds.has(n.id);
       return {
-        id: n.id, label: n.label, value: n.heat ?? n.freq, level: n.level, parent: n.parent,
-        color: col, shape: "dot",
-        font: { size: n.level === 0 ? 20 : 15, color: "#fff", strokeWidth: 3, strokeColor: "#0b0f1a" },
-        scaling: { min: n.level === 0 ? 16 : 10, max: n.level === 0 ? 60 : 34 },
+        id: n.id, label: n.label + (hot ? " ▲" : ""), value: n.heat ?? n.freq, level: n.level, parent: n.parent,
+        color: hot ? { background: col, border: "#FFD93D" } : col, shape: "dot",
+        borderWidth: hot ? 3 : 1,
+        font: { size: n.level === 0 ? 18 : 13, color: "#fff", strokeWidth: 3, strokeColor: "#0b0f1a" },
+        scaling: { min: n.level === 0 ? 16 : 10, max: n.level === 0 ? 60 : 26 },
       };
     });
     // child -> parent containment edges (hierarchy), + parent-parent co-occurrence (the macro web)
@@ -91,6 +96,7 @@ export default function ThemesView({ useArtifact }) {
     const coocc = data.edges.map((e, i) => ({
       id: "e" + i, from: e.a, to: e.b, value: e.w,
       width: 1 + 9 * (e.w / eMax), color: { color: "#8899bb55", highlight: "#5AC8FA" },
+      title: e.summary ? e.summary.slice(0, 60) + (e.summary.length > 60 ? "…" : "") : undefined,
     }));
 
     const net = new Network(canvasRef.current, { nodes: visNodes, edges: [...containment, ...coocc] }, {
@@ -127,6 +133,12 @@ export default function ThemesView({ useArtifact }) {
     net.once("stabilizationIterationsDone", () => {
       collapseAll();            // start collapsed: 부모 blob만 보임
       collapsed = true;
+      // 급상승 top-3가 속한 부모만 자동 펼침 — 오늘의 변화가 접힌 채 숨지 않게
+      const hotParents = new Set([...riserIds].map((id) => byId[id]?.parent || id));
+      hotParents.forEach((pid) => {
+        const cid = CLUSTER_PREFIX + pid;
+        if (net.isCluster(cid)) { try { net.openCluster(cid); } catch (e) { /* none */ } }
+      });
       net.fit({ animation: true });
     });
     // after the fit animation settles, anchor the threshold just above the resting scale
@@ -175,14 +187,51 @@ export default function ThemesView({ useArtifact }) {
 
   if (!data) return <div className="loading">불러오는 중…</div>;
 
+  // riser 클릭 → 해당 클러스터 열고 노드 포커스 + 패널 열기
+  const focusNode = (id) => {
+    const net = netRef.current;
+    const n = byId[id];
+    if (!net || !n) return;
+    const cid = CLUSTER_PREFIX + (n.level === 1 ? n.parent : id);
+    try { if (net.isCluster(cid)) net.openCluster(cid); } catch (e) { /* none */ }
+    try { net.focus(id, { scale: 0.9, animation: true }); } catch (e) { /* none */ }
+    setTrail([]); setSel({ kind: "node", id });
+  };
+
+  // 랜딩 = 급상승 랭킹 (인사이트 우선). rising이 비면 열기(heat) 상위로 폴백 + 정직한 라벨.
+  const risingRows = (data.rising || []).map((r) => ({ ...r, fallback: false }));
+  const fallbackRows = risingRows.length ? [] :
+    [...data.nodes].sort((a, b) => (b.heat || 0) - (a.heat || 0)).slice(0, 8)
+      .map((n) => ({ id: n.id, label: n.label, surge: null, recent_n: n.recent_n,
+                     why: n.heads?.[0]?.t || "", fallback: true }));
+
   // resolve current selection into panel content
   let panel = null;
   if (!sel) {
+    const rows = risingRows.length ? risingRows : fallbackRows;
     panel = (
       <>
-        <h2>이슈 덩어리를 클릭하세요</h2>
-        <div className="sub">큰 점=상위 이슈(AI·반도체…) · 줌인하면 세부 이슈로 갈라짐</div>
-        <div className="legend">휠로 <b>확대</b>하면 큰 덩어리(예: AI/인공지능)가 <b>AI 인프라·AI 로봇·AI 거품</b> 같은 세부 이슈로 펼쳐집니다. 점을 클릭하면 그 이슈가 뉴스에서 <b>무슨 말을 하는지</b> — 긍정/부정·헤드라인·추세가 나옵니다.</div>
+        <h2>{risingRows.length ? "🔥 지금 뜨는 이슈" : "이슈 열기 순위"}</h2>
+        <div className="sub">
+          {risingRows.length
+            ? "최근 2일 뉴스량이 직전 1주 대비 급증한 이슈 (관측 · 신호 아님)"
+            : "급상승 이슈 없음(뉴스량 안정) — 최근 가중 열기 순위를 표시"}
+        </div>
+        {rows.map((r, k) => (
+          <div key={r.id} className="riser" onClick={() => focusNode(r.id)}>
+            <span className="rank">#{k + 1}</span>
+            <div className="body">
+              <span style={{ fontWeight: 600 }}>{r.label}</span>
+              {r.surge != null && <span className="burst">▲ ×{r.surge}</span>}
+              {r.recent_n != null && <span style={{ color: "#667", fontSize: 12 }}> · 최근 {r.recent_n}건</span>}
+              {r.why && <div className="why">{r.why}</div>}
+            </div>
+          </div>
+        ))}
+        <div className="legend" style={{ marginTop: 12 }}>
+          왼쪽 그래프: 휠로 <b>확대</b>하면 큰 덩어리가 세부 이슈로 펼쳐집니다. 점 클릭 →
+          그 이슈의 요약·긍부정·관련 종목(오늘 등락 포함)·헤드라인.
+        </div>
       </>
     );
   } else if (sel.kind === "node") {
@@ -210,8 +259,19 @@ export default function ThemesView({ useArtifact }) {
             <div className="chips">{n.related.map((r) => <span key={r.id} className="chip" onClick={() => goEdge(r.id)}>{r.label} <span style={{ color: "#8ab" }}>{r.w}</span></span>)}</div>
           </>}
           {n.entities?.length > 0 && <>
-            <div className="seclabel">관련 기업 (클릭 → 이 기업 뉴스)</div>
-            <div className="chips">{n.entities.map((e, i) => <span key={i} className="chip" onClick={() => goEnt(e)}>{e.name} <span style={{ color: "#8ab" }}>{e.n}</span></span>)}</div>
+            <div className="seclabel">이슈 → 종목 → 가격 (오늘 등락 · 클릭 → 이 기업 뉴스)</div>
+            <div className="chips">
+              {[...n.entities].sort((a, b) => Math.abs(b.chg ?? 0) - Math.abs(a.chg ?? 0)).map((e, i) => (
+                <span key={i} className="chip" onClick={() => goEnt(e)}>
+                  {e.name} <span style={{ color: "#8ab" }}>{e.n}</span>
+                  {e.chg != null && (
+                    <b className={e.chg >= 0 ? "pos" : "neg"} style={{ marginLeft: 4 }}>
+                      {(e.chg >= 0 ? "+" : "") + (e.chg * 100).toFixed(1)}%
+                    </b>
+                  )}
+                </span>
+              ))}
+            </div>
           </>}
           <div className="seclabel">근거 헤드라인</div>
           <Heads heads={n.heads} />

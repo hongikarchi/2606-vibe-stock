@@ -263,7 +263,7 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
         i["stance"] = sc
         i["heads"] = diverse(stanced + neutral, 6)
         i["themes"] = [{"id": t, "label": label_of(t), "n": n}
-                       for t, n in sorted(themes.items(), key=lambda x: -x[1])[:5]]
+                       for t, n in sorted(themes.items(), key=lambda x: (-x[1], x[0]))[:5]]
         i["peers"] = peers.get(i["iid"], [])
         # analyst ratings (관측·추천 아님) — parse the JSON stamped on the node
         try:

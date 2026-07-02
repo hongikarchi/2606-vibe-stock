@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime
 import json
 import pathlib
+import re
 import sys
 
 try:
@@ -32,9 +33,15 @@ except Exception:  # noqa: BLE001
 
 DATA = pathlib.Path(__file__).resolve().parents[1] / "web" / "public" / "data"
 
-# Loose floors — well below normal (graph ~400, themes 52, emergent 120). A breach means
+# Loose floors — well below normal (graph ~400, themes 76, emergent 120). A breach means
 # something structurally broke (empty export, missing reanalyze), not normal variation.
-FLOOR = {"graph_issuers": 380, "themes_nodes": 50, "emergent_terms": 100}
+FLOOR = {"graph_issuers": 380, "themes_nodes": 70, "emergent_terms": 100}
+
+# W1-W3 structural invariants (2026-07-03): these fields are now product surface — their
+# absence means the export ran with pre-upgrade code or the capture layer silently died.
+MACRO_MDD_MIN = 8            # of 12 macros must carry a 1y MDD (N-of-M, feed-lag tolerant)
+TURNOVER_ROWS_MIN = 5        # per market (10 normal; 5 = loose floor)
+MKTCAP_MIN_PCT = 25.0        # % of graph issuers with mktcap>0 (KR-only ≈ 30%; US seed lifts it)
 
 # FRESHNESS — the 2026-07-02 audit found the 7 core macros frozen at 06-18/06-23 under an
 # 07-02 label (they were only refreshed by loop_build, never by the cron). market_refresh.py
@@ -162,6 +169,42 @@ def check() -> list[str]:
         elif pf < PRICE_FRESH_FLOOR_PCT:
             fails.append(f"[fresh] price_fresh_pct={pf} < {PRICE_FRESH_FLOOR_PCT} — "
                          "price windows mostly stale (did market_refresh run?)")
+
+    # 8. W1-W3 SURFACE — MDD/거래대금/급상승/시총/라벨 are product surface now; regressions
+    #    here shipped silently before (label==content, extended)
+    mdd_n = sum(1 for m in dash.get("macros", []) if isinstance(m.get("mdd"), (int, float)))
+    if mdd_n < MACRO_MDD_MIN:
+        fails.append(f"[w1] only {mdd_n} macros carry mdd (need >={MACRO_MDD_MIN}) — "
+                     "1y capture broken?")
+    tt = dash.get("turnover_top") or {}
+    for mk in ("kr", "us"):
+        if len(tt.get(mk) or []) < TURNOVER_ROWS_MIN:
+            fails.append(f"[w1] turnover_top.{mk} has {len(tt.get(mk) or [])} rows "
+                         f"(need >={TURNOVER_ROWS_MIN}) — 거래대금 capture broken?")
+    if "rising" not in themes:
+        fails.append("[w2] themes.rising missing — surge layer not exported")
+    no_summary = sum(1 for e in themes.get("edges", []) if not e.get("summary"))
+    if no_summary:
+        fails.append(f"[w2] {no_summary} theme edges lack a summary — the auto-template "
+                     "fallback is structurally guaranteed; its absence means the builder broke")
+    # exact-duplicate heads within one list = the dedup layer regressed
+    def _dups(lists):
+        return sum(1 for hs in lists
+                   if len({h.get("t") for h in hs}) < len(hs))
+    dup_lists = _dups([n.get("heads", []) for n in themes.get("nodes", [])])
+    dup_lists += _dups([i.get("heads", []) for i in graph.get("issuers", [])])
+    if dup_lists:
+        fails.append(f"[w2] {dup_lists} heads lists contain exact-duplicate headlines — "
+                     "headline_dedup regressed")
+    ksic_raw = sum(1 for i in graph.get("issuers", [])
+                   if re.match(r"KSIC \d", str(i.get("sector") or "")))
+    if ksic_raw:
+        fails.append(f"[w3] {ksic_raw} KR issuers ship raw KSIC codes as sector labels")
+    cap_n = sum(1 for i in graph.get("issuers", []) if (i.get("mktcap") or 0) > 0)
+    cap_pct = round(100 * cap_n / (n_issuers or 1), 1)
+    if cap_pct < MKTCAP_MIN_PCT:
+        fails.append(f"[w3] mktcap coverage {cap_pct}% < {MKTCAP_MIN_PCT}% — "
+                     "treemap sizing starved (KRX snapshot / US seed broken?)")
 
     return fails
 

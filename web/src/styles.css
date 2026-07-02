@@ -79,6 +79,35 @@ body {
 .dash td.spark { font-family: monospace; color: #6a7; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; max-width: 0; font-size: 12px; }
 
+/* 시장지도 (MarketMapView) */
+.mmap-toggle { position: absolute; top: 12px; left: 16px; z-index: 2; display: flex; gap: 4px;
+  background: #11161fcc; padding: 4px; border-radius: 8px; }
+.mmap-toggle button { background: transparent; color: #aab; border: 1px solid transparent;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.mmap-toggle button:hover { background: #1a2230; color: #fff; }
+.mmap-toggle button.on { background: #22304a; color: #fff; border-color: #345; }
+.cell { cursor: pointer; }
+.cell text { pointer-events: none; }
+.cell:hover rect { stroke: #5AC8FA !important; stroke-width: 2; }
+.mmap-legend { position: absolute; bottom: 12px; left: 16px; z-index: 2; display: flex; gap: 2px;
+  background: #11161fcc; padding: 5px 7px; border-radius: 8px; }
+.mmap-legend span { display: inline-block; padding: 2px 6px; font-size: 10px; color: #dde;
+  border-radius: 3px; }
+
+/* 이슈연관망 급상승 리스트 (RiserList) */
+.riser { display: flex; gap: 10px; padding: 9px 6px; border-bottom: 1px solid #1c2432;
+  cursor: pointer; align-items: baseline; }
+.riser:hover { background: #1a2230; }
+.riser .rank { color: #556; font-size: 13px; width: 20px; flex-shrink: 0; }
+.riser .body { min-width: 0; }
+.riser .burst { color: #FFD93D; font-weight: 600; font-size: 13px; margin-left: 6px; }
+.riser .why { color: #9aa; font-size: 12px; margin-top: 2px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+
+/* 거래대금 top10 표 2단 (DashboardView) */
+.dash .duo { display: flex; gap: 24px; flex-wrap: wrap; }
+.dash .duo > div { flex: 1 1 320px; min-width: 0; }
+
 /* ===================== MOBILE (<= 640px) ===================== */
 @media (max-width: 640px) {
   /* nav: horizontal scroll, never wrap Korean per-character */

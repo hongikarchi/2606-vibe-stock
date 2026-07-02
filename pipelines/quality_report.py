@@ -108,6 +108,39 @@ def collect(repo, as_of: str) -> dict:
         "ratio": round((dup.get("c") or 0) / (dup.get("d") or 1), 3),
     }
 
+    # ---- W1-W3 표면 지표 (2026-07-03 배포물 품질 루프) ---------------------------
+    krx = _one(repo, "MATCH (i:Issuer) WHERE i.krx_date IS NOT NULL "
+                     "RETURN max(i.krx_date) AS d, count(i) AS n")
+    cap = _one(repo, "MATCH (i:Issuer) WHERE (i.issuer_id STARTS WITH 'CIK' AND "
+                     "i.index_membership IS NOT NULL) OR i.issuer_id STARTS WITH 'DART' "
+                     "RETURN count(i) AS n, "
+                     "sum(CASE WHEN i.issuer_id STARTS WITH 'DART' AND i.mktcap > 0 "
+                     "THEN 1 ELSE 0 END) AS kr_cap, "
+                     "sum(CASE WHEN i.issuer_id STARTS WITH 'DART' THEN 1 ELSE 0 END) AS kr_n, "
+                     "sum(CASE WHEN i.issuer_id STARTS WITH 'CIK' AND "
+                     "(i.shares_outstanding > 0 OR i.mktcap_raw > 0) THEN 1 ELSE 0 END) AS us_cap, "
+                     "sum(CASE WHEN i.issuer_id STARTS WITH 'CIK' THEN 1 ELSE 0 END) AS us_n")
+    q["w_surface"] = {
+        "krx_snapshot_age_d": _age(krx.get("d"), as_of),
+        "krx_rows": krx.get("n", 0),
+        "mktcap_kr_pct": round(100 * (cap.get("kr_cap") or 0) / (cap.get("kr_n") or 1), 1),
+        "mktcap_us_pct": round(100 * (cap.get("us_cap") or 0) / (cap.get("us_n") or 1), 1),
+    }
+    try:
+        themes_art = json.loads((cfg.ROOT / "web" / "public" / "data" / "themes.json")
+                                .read_text(encoding="utf-8"))
+        edges_art = themes_art.get("edges", [])
+        q["w_surface"]["edge_curated_pct"] = round(
+            100 * sum(1 for e in edges_art if e.get("summary_kind") == "curated")
+            / (len(edges_art) or 1), 1)
+        q["w_surface"]["rising_top"] = [r["id"] for r in themes_art.get("rising", [])][:5]
+        dash_art = json.loads((cfg.ROOT / "web" / "public" / "data" / "dashboard.json")
+                              .read_text(encoding="utf-8"))
+        q["w_surface"]["macro_mdd_n"] = sum(
+            1 for m in dash_art.get("macros", []) if isinstance(m.get("mdd"), (int, float)))
+    except Exception as e:  # noqa: BLE001
+        q["w_surface"]["artifact_error"] = f"{type(e).__name__}: {e}"
+
     # ---- 배포물 건강 (published artifacts; reuse the existing measures) ----------
     try:
         from loop_metrics import metrics as _lm
@@ -152,6 +185,16 @@ def verdicts(q: dict) -> list[tuple[str, str, str]]:
         f"newest knowledge_time {f['news_knowledge_age_d']}d old")
     chk(d["ratio"] <= DUP_RATIO_CEIL, "news duplication",
         f"ratio {d['ratio']} ({d['news_claims']} claims / {d['distinct_headlines']} headlines)")
+    w = q.get("w_surface", {})
+    if w:
+        chk(w.get("krx_snapshot_age_d", 9999) <= 3, "KRX snapshot age",
+            f"{w.get('krx_snapshot_age_d')}d old ({w.get('krx_rows')} rows)")
+        chk(w.get("mktcap_kr_pct", 0) >= 90, "mktcap coverage KR",
+            f"KR {w.get('mktcap_kr_pct')}% · US {w.get('mktcap_us_pct')}%")
+        chk(w.get("macro_mdd_n", 0) >= 8, "macro MDD coverage",
+            f"{w.get('macro_mdd_n')}/12 macros")
+        chk(w.get("edge_curated_pct", 0) >= 50, "theme edge curation",
+            f"{w.get('edge_curated_pct')}% curated (나머지는 자동 템플릿)")
     chk(q["gate"]["pass"], "artifact gate", "; ".join(q["gate"]["fails"][:2]) or "all invariants hold")
     return v
 
