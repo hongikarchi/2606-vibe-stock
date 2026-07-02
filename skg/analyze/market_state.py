@@ -24,11 +24,14 @@ STATE_TICKERS = {
 }
 
 
-def fetch_52w_position(issuer_tickers, knowledge_time, batch=80):
-    """issuer_tickers = [(issuer_id, yf_symbol)]. Returns {issuer_id: position_pct (0-100)}.
-    52w position from a 1-year daily batch download (no slow per-ticker .info)."""
+def fetch_52w_stats(issuer_tickers, knowledge_time, batch=80):
+    """issuer_tickers = [(issuer_id, yf_symbol)]. Returns
+    {issuer_id: {"pos": 52w-position 0-100, "mdd": 1y max drawdown (negative fraction)}}.
+    Both from the SAME 1-year daily batch download the breadth read always made —
+    the per-stock MDD costs zero extra API calls."""
     import yfinance as yf
-    pos = {}
+    from ..sources.market import _max_drawdown
+    stats = {}
     for i in range(0, len(issuer_tickers), batch):
         chunk = issuer_tickers[i:i + batch]
         syms = [s for _, s in chunk]
@@ -42,13 +45,21 @@ def fetch_52w_position(issuer_tickers, knowledge_time, batch=80):
                 c = df[sym]["Close"].dropna()
                 if len(c) < 50:
                     continue
-                hi, lo, cur = float(c.max()), float(c.min()), float(c.iloc[-1])
+                closes = [float(x) for x in c.tolist()]
+                hi, lo, cur = max(closes), min(closes), closes[-1]
                 if hi > lo:
-                    pos[iid] = round((cur - lo) / (hi - lo) * 100, 1)
+                    stats[iid] = {"pos": round((cur - lo) / (hi - lo) * 100, 1),
+                                  "mdd": round(_max_drawdown(closes), 4)}
             except Exception:  # noqa: BLE001
                 continue
         time.sleep(0.3)  # polite between batches
-    return pos
+    return stats
+
+
+def fetch_52w_position(issuer_tickers, knowledge_time, batch=80):
+    """Back-compat wrapper: {issuer_id: position_pct}."""
+    return {iid: s["pos"] for iid, s in
+            fetch_52w_stats(issuer_tickers, knowledge_time, batch).items()}
 
 
 def breadth_summary(positions: dict) -> dict:
@@ -68,30 +79,36 @@ def breadth_summary(positions: dict) -> dict:
 
 
 def fetch_state_indicators(knowledge_time):
-    """Commodity + memory-proxy current levels as MacroIndicator rows (reuse the macro layer)."""
+    """Commodity + memory-proxy current levels as MacroIndicator rows (reuse the macro layer).
+    Downloads 1y so the 52-week drawdown stats ride along; stored closes stay a 90-bar window."""
     import json
     import yfinance as yf
     from ..models import MacroIndicator
+    from ..sources.market import _drawdown_series
     out = []
     df = None
     try:
-        df = yf.download(list(STATE_TICKERS), period="3mo", interval="1d", group_by="ticker",
+        df = yf.download(list(STATE_TICKERS), period="1y", interval="1d", group_by="ticker",
                          progress=False, auto_adjust=True, threads=True)
     except Exception:  # noqa: BLE001
         return out
     for ticker, (name, cat) in STATE_TICKERS.items():
         try:
             c = df[ticker]["Close"].dropna()
-            closes = [round(float(x), 4) for x in c.tolist()][-90:]
-            dates = [d.strftime("%Y-%m-%dT00:00:00") for d in c.index][-90:]
+            closes_1y = [round(float(x), 4) for x in c.tolist()]
+            dates_1y = [d.strftime("%Y-%m-%dT00:00:00") for d in c.index]
+            closes, dates = closes_1y[-90:], dates_1y[-90:]
             if not closes:
                 continue
             pct = round((closes[-1] / closes[0] - 1.0), 4) if closes[0] else 0.0
+            dd = _drawdown_series(closes_1y)
             out.append(MacroIndicator(
                 indicator_id=f"MACRO:{ticker}", ticker=ticker, name=name, category=cat,
                 last_close=closes[-1], window_start=dates[0], window_end=dates[-1],
                 pct_change_window=pct, recent_closes_json=json.dumps(closes),
-                event_time=dates[-1], knowledge_time=knowledge_time))
+                event_time=dates[-1], knowledge_time=knowledge_time,
+                mdd_1y=round(min(dd), 4) if dd else 0.0,
+                curr_dd=dd[-1] if dd else 0.0))
         except Exception:  # noqa: BLE001
             continue
     return out

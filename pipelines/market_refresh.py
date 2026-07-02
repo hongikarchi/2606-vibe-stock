@@ -83,6 +83,19 @@ def main() -> None:
             repo.write_price_series(new_series)
             print(f"[refresh] {len(new_series)}/{len(gap)} gap series added")
 
+    # 2c) KR daily snapshot (시가총액/거래대금/당일등락) — ONE key-free FDR call, every cron
+    # pass (not gated by SKG_INCLUDE_KR: this is state refresh, not corpus ingestion).
+    # Failure is non-fatal: last snapshot's props persist, krx_date exposes their age.
+    if hasattr(repo, "set_issuer_krx_state"):
+        try:
+            from skg.sources.krx import fetch_krx_snapshot
+            snap = fetch_krx_snapshot()
+            repo.set_issuer_krx_state(snap, as_of)
+            print(f"[refresh] KRX snapshot: {len(snap)} rows stamped (mktcap/거래대금/등락)")
+        except Exception as e:  # noqa: BLE001 — a scrape hiccup must not kill the cron
+            print(f"[refresh] WARN KRX snapshot failed ({type(e).__name__}: {e}) — "
+                  "previous snapshot stays, krx_date shows its age")
+
     # 3) honest staleness report — what is STILL old after the refresh (dead tickers etc.)
     if hasattr(repo, "_read"):
         recs = repo._read("MATCH (p:PriceSeries) RETURN p.ticker AS t, p.window_end AS we")

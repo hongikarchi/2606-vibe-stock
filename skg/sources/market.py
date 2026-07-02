@@ -40,6 +40,21 @@ def _log_returns(closes: list[float]) -> list[float]:
     return out
 
 
+def _drawdown_series(closes: list[float]) -> list[float]:
+    """Per-bar drawdown from the running peak (values <= 0). Descriptive."""
+    out, peak = [], 0.0
+    for c in closes:
+        peak = max(peak, c)
+        out.append(round(c / peak - 1.0, 4) if peak else 0.0)
+    return out
+
+
+def _max_drawdown(closes: list[float]) -> float:
+    """Worst peak-to-trough over the window, as a negative fraction (e.g. -0.1834)."""
+    dd = _drawdown_series(closes)
+    return min(dd) if dd else 0.0
+
+
 def _stdev(xs: list[float]) -> float:
     if len(xs) < 2:
         return 0.0
@@ -73,40 +88,59 @@ class MarketFetcher:
             time.sleep(wait)
         self._last = time.monotonic()
 
-    def _download(self, tickers: list[str]):
+    def _download(self, tickers: list[str], period: str | None = None):
+        """period overrides PER CALL only — the constructor default stays 6mo so the
+        1,600+-ticker price batches never accidentally widen to 1y."""
         import yfinance as yf
         self._throttle()
-        return yf.download(tickers, period=self.period, interval="1d",
+        return yf.download(tickers, period=period or self.period, interval="1d",
                            group_by="ticker", progress=False, auto_adjust=True,
                            threads=False)
 
     @staticmethod
-    def _closes_for(df, ticker: str) -> tuple[list[float], list[str]]:
-        """Return (closes, iso_dates) for one ticker from a group_by='ticker' frame."""
+    def _closes_for(df, ticker: str) -> tuple[list[float], list[str], list[float]]:
+        """(closes, iso_dates, volumes) for one ticker from a group_by='ticker' frame.
+        Volumes are aligned to the Close index (missing -> 0.0)."""
         try:
             s = df[ticker]["Close"].dropna()
         except (KeyError, TypeError):
-            return [], []
+            return [], [], []
         closes = [round(float(x), 4) for x in s.tolist()]
         dates = [d.strftime("%Y-%m-%dT00:00:00") for d in s.index]
-        return closes, dates
+        try:
+            v = df[ticker]["Volume"].reindex(s.index).fillna(0.0)
+            volumes = [float(x) for x in v.tolist()]
+        except (KeyError, TypeError):
+            volumes = [0.0] * len(closes)
+        return closes, dates, volumes
 
     # ----------------------------------------------------------------- macro
     def fetch_macro_indicators(self, knowledge_time: str) -> list[MacroIndicator]:
-        df = self._download(list(MACRO_TICKERS))
+        # 1y download so the drawdown stats cover 52 weeks; the stored closes window
+        # stays at self.window (90) — only the derived scalars use the full year
+        df = self._download(list(MACRO_TICKERS), period="1y")
         out = []
         for ticker, (name, category) in MACRO_TICKERS.items():
-            closes, dates = self._closes_for(df, ticker)
-            closes, dates = closes[-self.window:], dates[-self.window:]
+            closes_1y, dates_1y, _ = self._closes_for(df, ticker)
+            closes, dates = closes_1y[-self.window:], dates_1y[-self.window:]
             if not closes:
                 continue
             pct = round((closes[-1] / closes[0] - 1.0), 4) if closes[0] else 0.0
+            dd = _drawdown_series(closes_1y)
+            # underwater sparkline data only for indices (dashboard W1); downsample <=120 pts
+            dd_json = ""
+            if category == "index" and dd:
+                step = max(1, len(dd) // 120)
+                dd_json = json.dumps(dd[::step][-120:])
             out.append(MacroIndicator(
                 indicator_id=f"MACRO:{ticker}", ticker=ticker, name=name, category=category,
                 last_close=closes[-1], window_start=dates[0], window_end=dates[-1],
                 pct_change_window=pct,
                 recent_closes_json=json.dumps(closes),
                 event_time=dates[-1], knowledge_time=knowledge_time,
+                mdd_1y=round(min(dd), 4) if dd else 0.0,
+                curr_dd=dd[-1] if dd else 0.0,
+                dd_series_json=dd_json,
             ))
         return out
 
@@ -162,13 +196,16 @@ class MarketFetcher:
             except Exception:  # noqa: BLE001 — a bad batch must not kill the loop
                 continue
             for issuer_id, security_id, ticker in chunk:
-                closes, dates = self._closes_for(df, ticker)
-                closes, dates = closes[-self.window:], dates[-self.window:]
+                closes, dates, volumes = self._closes_for(df, ticker)
+                closes, dates, volumes = (closes[-self.window:], dates[-self.window:],
+                                          volumes[-self.window:])
                 if len(closes) < 2:
                     continue
                 rets = _log_returns(closes)
                 pct = round((closes[-1] / closes[0] - 1.0), 4) if closes[0] else 0.0
                 vol = round(_stdev(rets) * math.sqrt(252), 4)  # annualized (descriptive)
+                # 거래대금: mean of the last <=5 bars' close*volume, native ccy (USD / KRW)
+                tail = [c * v for c, v in zip(closes[-5:], volumes[-5:]) if v > 0]
                 out.append(PriceSeries(
                     series_id=f"PX:{security_id}", security_id=security_id,
                     issuer_id=issuer_id, ticker=ticker, last_close=closes[-1],
@@ -176,6 +213,8 @@ class MarketFetcher:
                     vol_window=vol, recent_closes_json=json.dumps(closes),
                     returns_json=json.dumps(rets),
                     event_time=dates[-1], knowledge_time=knowledge_time,
+                    last_volume=volumes[-1] if volumes else 0.0,
+                    turnover_5d=round(sum(tail) / len(tail), 2) if tail else 0.0,
                 ))
         return out
 

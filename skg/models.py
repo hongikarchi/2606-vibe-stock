@@ -78,6 +78,12 @@ class MacroIndicator:
     recent_closes_json: str   # bounded JSON array of recent daily closes
     event_time: str = ""
     knowledge_time: str = ""
+    # 1-year drawdown stats (computed on the full 1y history BEFORE window truncation).
+    # mdd_1y = worst peak-to-trough (negative fraction); curr_dd = latest bar's drawdown
+    # from the running 1y peak; dd_series_json only for indices (underwater sparkline).
+    mdd_1y: float = 0.0
+    curr_dd: float = 0.0
+    dd_series_json: str = ""
 
 
 @dataclass
@@ -96,6 +102,8 @@ class PriceSeries:
     returns_json: str         # bounded JSON array of daily log-returns
     event_time: str = ""
     knowledge_time: str = ""
+    last_volume: float = 0.0  # last bar's share volume (native units)
+    turnover_5d: float = 0.0  # mean of last <=5 bars' close*volume (native ccy) = 거래대금
 
 
 @dataclass

@@ -46,8 +46,10 @@ def build_dashboard_data(repo) -> dict:
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) RETURN m.name AS name, m.last_close AS px, "
         "m.pct_change_window AS chg, m.category AS cat, m.recent_closes_json AS series, "
-        "m.window_end AS end "
+        "m.window_end AS end, m.mdd_1y AS mdd, m.curr_dd AS curr_dd, "
+        "m.dd_series_json AS dds "
         "ORDER BY m.category, m.name")]
+    index_mdd = []
     for m in macros:
         try:
             m["series"] = json.loads(m.get("series") or "[]")
@@ -55,6 +57,49 @@ def build_dashboard_data(repo) -> dict:
             m["series"] = []
         # window-end date ships with the artifact so the gate can verify label==content
         m["end"] = str(m.get("end") or "")[:10]
+        dds = m.pop("dds", None)
+        if m.get("cat") == "index" and m.get("mdd") is not None:
+            try:
+                dd_series = json.loads(dds or "[]")
+            except Exception:  # noqa: BLE001
+                dd_series = []
+            index_mdd.append({"name": m["name"], "mdd": m["mdd"],
+                              "curr_dd": m.get("curr_dd"), "dd_series": dd_series})
+
+    # 거래대금 상위 10 (오늘) — KR from the FDR snapshot (i.turnover_krw), US from the
+    # captured Volume×Close (p.turnover_5d); each with 1y MDD + fresh daily change
+    from skg.analyze.headline_dedup import day_change_from_closes
+
+    def _turnover_rows(cypher):
+        out = []
+        for r in repo._read(cypher, as_of=cfg.AS_OF_NOW):
+            out.append({
+                "name": r["name"], "iid": r["iid"], "turnover": r["turnover"],
+                "ccy": r["ccy"], "mdd": r.get("mdd"), "pos": r.get("pos"),
+                "mktcap": r.get("mktcap"),
+                "chg": (r.get("chg_krx") if r.get("chg_krx") is not None
+                        else day_change_from_closes(r.get("c"), r.get("we"), cfg.AS_OF_NOW)),
+            })
+        return out
+
+    turnover_top = {
+        "kr": _turnover_rows(
+            "MATCH (i:Issuer) WHERE i.issuer_id STARTS WITH 'DART' "
+            "AND i.turnover_krw IS NOT NULL "
+            "OPTIONAL MATCH (i)-[:HAS_PRICE]->(p:PriceSeries) "
+            "RETURN i.name AS name, i.issuer_id AS iid, i.turnover_krw AS turnover, "
+            "'KRW' AS ccy, i.mdd_1y AS mdd, i.pos_52w AS pos, i.mktcap AS mktcap, "
+            "i.day_chg_krx AS chg_krx, p.recent_closes_json AS c, p.window_end AS we "
+            "ORDER BY i.turnover_krw DESC LIMIT 10"),
+        "us": _turnover_rows(
+            "MATCH (i:Issuer)-[:HAS_PRICE]->(p:PriceSeries) "
+            "WHERE i.issuer_id STARTS WITH 'CIK' AND p.turnover_5d IS NOT NULL "
+            "AND p.turnover_5d > 0 "
+            "RETURN i.name AS name, i.issuer_id AS iid, p.turnover_5d AS turnover, "
+            "'USD' AS ccy, i.mdd_1y AS mdd, i.pos_52w AS pos, null AS mktcap, "
+            "null AS chg_krx, p.recent_closes_json AS c, p.window_end AS we "
+            "ORDER BY p.turnover_5d DESC LIMIT 10"),
+    }
 
     sectors_raw = repo._read(
         "MATCH (i:Issuer)-[:IN_SECTOR]->(s:Sector) WHERE i.pos_52w IS NOT NULL "
@@ -70,7 +115,9 @@ def build_dashboard_data(repo) -> dict:
         "MATCH (t:Term) RETURN t.term AS term, t.degree AS deg, t.spark AS spark "
         "ORDER BY t.degree DESC LIMIT 16")]
     return {"as_of": cfg.AS_OF_NOW, "us": breadth("CIK"), "kr": breadth("DART"),
-            "macros": macros, "hot": sectors[:8], "cold": sectors[-8:][::-1], "terms": terms}
+            "macros": macros, "mdd_window": "52wk", "index_mdd": index_mdd,
+            "turnover_top": turnover_top,
+            "hot": sectors[:8], "cold": sectors[-8:][::-1], "terms": terms}
 
 
 # ---------------------------------------------------------------- emergent
@@ -112,7 +159,9 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
     import json as _json
     cols = ("a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
             "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, "
-            "s.sic_code AS sic, i.ratings_consensus AS rc, i.ratings_changes AS rch")
+            "s.sic_code AS sic, i.ratings_consensus AS rc, i.ratings_changes AS rch, "
+            "i.mktcap AS mktcap_kr, i.shares_outstanding AS sh_out, "
+            "i.mktcap_raw AS mktcap_raw, i.mdd_1y AS mdd, i.day_chg_krx AS chg_krx")
     us_rows = repo._read(
         "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
         "WHERE i.issuer_id STARTS WITH 'CIK' OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
@@ -187,6 +236,14 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
         "RETURN i.issuer_id AS iid, collect(DISTINCT p.name)[..6] AS peers", iids=iids):
         peers[r["iid"]] = r["peers"]
 
+    # price join for the treemap: daily change (staleness-guarded) + US mktcap tracking
+    from skg.analyze.headline_dedup import day_change_from_closes
+    from skg.export.dashboard import _ksic_name
+    px = {r["iid"]: r for r in repo._read(
+        "MATCH (i:Issuer)-[:HAS_PRICE]->(p:PriceSeries) WHERE i.issuer_id IN $iids "
+        "RETURN i.issuer_id AS iid, p.last_close AS last, p.recent_closes_json AS c, "
+        "p.window_end AS we", iids=iids)}
+
     for i in issuers:
         hs = by_issuer.get(i["iid"], [])
         # stance breakdown
@@ -215,6 +272,26 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
         except Exception:  # noqa: BLE001
             i["ratings"] = None
         i.pop("rc", None); i.pop("rch", None)
+
+        # treemap fields: 시가총액 / 일간등락 / 한국어 섹터 라벨 (결측은 null — 회색/최소셀)
+        kr = i["iid"].startswith("DART")
+        p = px.get(i["iid"])
+        if kr:
+            i["mktcap"] = i.get("mktcap_kr")
+            i["ccy"] = "KRW"
+            i["chg"] = (i.get("chg_krx") if i.get("chg_krx") is not None else
+                        (day_change_from_closes(p["c"], p["we"], cfg.AS_OF_NOW) if p else None))
+            # "KSIC 2612" raw codes -> Korean industry names (was dashboard-only)
+            if str(i.get("sid") or "").startswith("KSIC"):
+                i["sector"] = _ksic_name(i.get("sic"))
+        else:
+            sh, raw = i.get("sh_out"), i.get("mktcap_raw")
+            i["mktcap"] = (round(sh * p["last"]) if (sh and p and p.get("last"))
+                           else (raw if raw else None))
+            i["ccy"] = "USD"
+            i["chg"] = day_change_from_closes(p["c"], p["we"], cfg.AS_OF_NOW) if p else None
+        for k in ("mktcap_kr", "sh_out", "mktcap_raw", "chg_krx"):
+            i.pop(k, None)
 
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) OPTIONAL MATCH (cl:Claim)-[:ABOUT]->(m) "

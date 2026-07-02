@@ -332,6 +332,31 @@ class Neo4jRepository:
             rows=[{"iid": k, "pos": v} for k, v in positions.items()],
         )
 
+    def set_issuer_52w_stats(self, stats: dict) -> None:
+        """52w position + 1y max drawdown per issuer, from the same 1y batch. Descriptive."""
+        if not stats:
+            return
+        self._write(
+            "UNWIND $rows AS r MATCH (i:Issuer {issuer_id: r.iid}) "
+            "SET i.pos_52w = r.pos, i.mdd_1y = r.mdd",
+            rows=[{"iid": k, "pos": v["pos"], "mdd": v["mdd"]} for k, v in stats.items()],
+        )
+
+    def set_issuer_krx_state(self, rows: list[dict], as_of: str) -> None:
+        """KR daily snapshot from one FDR StockListing('KRX') call: 시가총액(mktcap),
+        거래대금(turnover_krw), 당일 등락(day_chg_krx). krx_date exposes the snapshot age so a
+        failed refresh is visible, never silent. Matches issuers via their KRX listing ticker."""
+        if not rows:
+            return
+        self._write(
+            "UNWIND $rows AS r "
+            "MATCH (l:Listing {ticker: r.code})-[:OF_SECURITY]->(:Security)"
+            "-[:OF_ISSUER]->(i:Issuer) WHERE i.issuer_id STARTS WITH 'DART' "
+            "SET i.mktcap = r.marcap, i.turnover_krw = r.amount, "
+            "    i.day_chg_krx = r.chg_pct, i.krx_date = $as_of",
+            rows=rows, as_of=as_of,
+        )
+
     def set_index_membership(self, memberships: dict) -> None:
         """Stamp index membership ('S&P500,NASDAQ100') on US issuers for the universe filter.
         memberships = {cik: [labels]}. Idempotent; only sets the tag, prunes nothing."""

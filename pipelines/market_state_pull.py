@@ -22,7 +22,7 @@ except Exception:
     pass
 
 import config as cfg
-from skg.analyze.market_state import (breadth_summary, fetch_52w_position,
+from skg.analyze.market_state import (breadth_summary, fetch_52w_stats,
                                       fetch_state_indicators)
 from skg.database import make_repo
 
@@ -40,12 +40,13 @@ def main() -> None:
     for m in inds:
         print(f"    {m.name[:22]:22} {m.last_close}  ({m.pct_change_window:+.1%} 3mo)")
 
-    # 2) 52-week position per issuer -> breadth
+    # 2) 52-week position + 1y max drawdown per issuer (same 1y batch) -> breadth + MDD
     syms = repo.get_issuer_symbols()[:MAX_ISSUERS]
-    print(f"[state] computing 52w position for {len(syms)} issuers (batched)...")
-    positions = fetch_52w_position(syms, as_of)
-    repo.set_issuer_52w_position(positions)
-    print(f"[state] {len(positions)} issuers stamped with 52w position")
+    print(f"[state] computing 52w position + 1y MDD for {len(syms)} issuers (batched)...")
+    stats = fetch_52w_stats(syms, as_of)
+    repo.set_issuer_52w_stats(stats)
+    positions = {k: v["pos"] for k, v in stats.items()}
+    print(f"[state] {len(stats)} issuers stamped with pos_52w + mdd_1y")
 
     # market breadth — split US vs KR (different markets, different state)
     us = {k: v for k, v in positions.items() if k.startswith("CIK")}

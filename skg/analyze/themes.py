@@ -19,12 +19,18 @@ THEMES = {
     "datacenter":    ("데이터센터", ["데이터센터", "data center", "datacenter", "서버", "클라우드", "cloud", "hyperscaler"]),
     "power_energy":  ("전력 / 에너지", ["전력", "energy", "electricity", "원전", "nuclear", "원자력", "발전소", "grid", "송전", "전력망"]),
     "rates":         ("금리", ["금리", "interest rate", "fed", "federal reserve", "연준", "기준금리", "rate cut", "rate hike", "통화정책", "monetary policy"]),
-    "fx":            ("환율", ["환율", "exchange rate", "달러", "dollar", "원화", "won", "원달러", "강달러", "약달러"]),
+    # fx keywords MEASURED-precision fix (2026-07-03): bare 달러/dollar/won/원화 matched every
+    # valuation headline ("36,000 won", "billion-dollar IPO") — 88 fx "stories" were ~80%
+    # currency-UNIT hits, not currency-MARKET stories. Qualified forms only.
+    "fx":            ("환율", ["환율", "exchange rate", "원달러", "원·달러", "강달러", "약달러",
+                             "달러 강세", "달러 약세", "won-dollar", "달러인덱스", "원화 가치", "원화 약세"]),
     "oil":           ("유가 / 원유", ["유가", "crude", "oil price", "OPEC", "원유", "WTI", "brent", "정유"]),
     "gold":          ("금 / 안전자산", ["금값", "gold price", "금 시세", "안전자산", "safe haven", "귀금속"]),
     "trump":         ("트럼프 / 美정치", ["트럼프", "trump", "백악관", "white house", "행정명령", "executive order"]),
     "geopolitics":   ("지정학 / 중동", ["이란", "iran", "중동", "middle east", "israel", "이스라엘", "전쟁", "war", "분쟁", "conflict", "우크라이나", "ukraine", "지정학", "geopolit"]),
-    "trade":         ("관세 / 무역", ["관세", "tariff", "trade war", "무역", "수출규제", "export control", "통상마찰", "통상분쟁"]),
+    # bare 무역 dropped (matched company names: 영원'무역', 무역보험공사 — measured 2026-07-03)
+    "trade":         ("관세 / 무역", ["관세", "tariff", "trade war", "무역전쟁", "무역협상", "무역분쟁",
+                                  "수출규제", "export control", "통상마찰", "통상분쟁"]),
     # NOTE: '실적'(earnings) removed as a theme — it is an EVENT TYPE (every company reports
     # earnings), not a subject. Measured: it spanned 259/302 sectors (vs 반도체 83), 88% of its
     # headlines were earnings-only valuation boilerplate ("Price to earnings forward… TradingView"),
@@ -43,6 +49,16 @@ THEMES = {
     "defense":       ("방산 / 국방", ["방산", "defense", "무기", "weapon", "군수", "missile", "국방"]),
     "realestate":    ("부동산 / 건설", ["부동산", "real estate", "건설", "construction", "분양", "주택", "housing", "리츠", "REIT"]),
     "crypto":        ("가상자산", ["비트코인", "bitcoin", "가상자산", "crypto", "이더리움", "ethereum", "디지털자산"]),
+    # ---- industry parents added 2026-07-03 (corpus-validated: post-dedup story counts
+    # shipbuild 57 / bio 197 / auto 76 / finance 332 / enter 53 / consumer 101 — whole
+    # sectors the gazetteer previously missed although flow-clustering shows them as real
+    # co-movement groups). Company names deliberately NOT used as keywords.
+    "shipbuild":     ("조선 / 해운", ["조선", "선박", "shipbuilding", "함정", "LNG선", "유조선", "조선소", "해운", "상선"]),
+    "bio":           ("바이오 / 제약", ["바이오", "제약", "신약", "임상", "biotech", "pharma", "치료제", "FDA"]),
+    "auto":          ("자동차 / 모빌리티", ["자동차", "완성차", "모빌리티", "automotive", "자율주행", "로보택시"]),
+    "finance":       ("금융 / 은행·증권", ["은행", "증권사", "보험", "금융지주", "카드", "핀테크", "banking", "금융그룹"]),
+    "enter":         ("엔터 / 게임·콘텐츠", ["엔터", "게임", "콘텐츠", "웹툰", "K팝", "케이팝", "드라마", "음원", "아이돌"]),
+    "consumer":      ("유통 / 소비재", ["유통", "식품", "화장품", "K뷰티", "K푸드", "편의점", "백화점", "리테일", "패션"]),
 }
 
 

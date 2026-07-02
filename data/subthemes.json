@@ -5,14 +5,15 @@
   {"id": "ai_chip", "label": "AI 반도체 / 칩", "keywords": ["AI 반도체", "AI chip", "AI semiconductor", "nvidia", "엔비디아", "TPU", "가속기", "accelerator", "neural"]},
   {"id": "ai_bubble", "label": "AI 거품 / 과열 논란", "keywords": ["AI 거품", "AI bubble", "거품", "과열", "AI doubt", "AI 과열"]},
   {"id": "ai_robot", "label": "AI 로봇 / 휴머노이드", "keywords": ["로봇", "robot", "humanoid", "휴머노이드", "로보틱스", "robotics", "자율"]},
-  {"id": "ai_adopt", "label": "AI 도입 / 사업 전환", "keywords": ["인공지능 전환", "AI 전환", "AI 도입", "AI push", "전담 조직", "AI-powered", "생성형 AI", "AI 솔루션"]}
+  {"id": "ai_adopt", "label": "AI 도입 / AX 전환", "keywords": ["인공지능 전환", "AI 전환", "AI 도입", "AI push", "전담 조직", "AI-powered", "생성형 AI", "AI 솔루션", "AX", "에이전트", "agent"]}
  ],
  "semiconductor": [
   {"id": "semi_hbm", "label": "HBM / 메모리", "keywords": ["HBM", "메모리", "memory chip", "D램", "DRAM", "낸드", "NAND", "고대역폭"]},
   {"id": "semi_equip", "label": "반도체 장비 / 소부장", "keywords": ["반도체 장비", "semiconductor equipment", "소부장", "본더", "장비", "후공정", "패키징", "packaging"]},
   {"id": "semi_material", "label": "반도체 소재 / 부품", "keywords": ["반도체 소재", "반도체 재료", "반도체 기판", "FC-BGA", "포토레지스트", "CMP 슬러리", "substrate"]},
   {"id": "semi_foundry", "label": "파운드리 / 위탁생산", "keywords": ["파운드리", "foundry", "위탁생산", "tsmc", "수탁"]},
-  {"id": "semi_cluster", "label": "반도체 클러스터 / 투자", "keywords": ["반도체 클러스터", "클러스터", "반도체 투자", "fab", "증설", "공장"]}
+  {"id": "semi_cluster", "label": "반도체 클러스터 / 투자", "keywords": ["반도체 클러스터", "클러스터", "반도체 투자", "fab", "증설", "공장"]},
+  {"id": "semi_test", "label": "반도체 테스트 / 계측", "keywords": ["테스트", "계측", "프로브", "핸들러", "OSAT"]}
  ],
  "datacenter": [
   {"id": "dc_power", "label": "데이터센터 전력 수요", "keywords": ["데이터센터 전력", "전력 수요", "버스덕트", "전력망", "power demand"]},
@@ -23,7 +24,8 @@
   {"id": "pe_grid", "label": "전력 인프라 / 전력망", "keywords": ["전력 인프라", "전력망", "power infrastructure", "grid", "송전", "북미 전력", "전선"]},
   {"id": "pe_nuclear", "label": "원전 / 원자력", "keywords": ["원전", "원자력", "nuclear", "smr", "발전소"]},
   {"id": "pe_renew", "label": "재생에너지 / 태양광·풍력", "keywords": ["태양광", "풍력", "renewable", "solar", "wind", "재생에너지", "신재생"]},
-  {"id": "pe_storage", "label": "에너지 저장 / ESS·배터리", "keywords": ["energy storage", "ess", "battery storage", "eos energy", "에너지 저장"]}
+  {"id": "pe_storage", "label": "에너지 저장 / ESS·배터리", "keywords": ["energy storage", "ess", "battery storage", "eos energy", "에너지 저장"]},
+  {"id": "pe_transformer", "label": "변압기 / 전력기기", "keywords": ["변압기", "초고압", "transformer", "전력기기"]}
  ],
  "geopolitics": [
   {"id": "geo_iran", "label": "이란 / 중동 분쟁", "keywords": ["iran", "이란", "iran war", "iran ceasefire", "israel", "이스라엘", "ceasefire", "휴전"]},
@@ -51,5 +53,41 @@
  "regulation": [
   {"id": "reg_ftc", "label": "공정위 / 갑질 제재", "keywords": ["공정위", "공정거래", "갑질", "시정명령", "과징금", "antitrust", "반독점"]},
   {"id": "reg_sanction", "label": "제재 / 규제 완화", "keywords": ["제재", "sanction", "규제 완화", "규제 해소", "규제특례"]}
+ ],
+ "_doc2": "2026-07-03 확장: 각 자식은 dedup-후 코퍼스 스토리 빈도 >=5 검증 후 채택 (validate_subthemes 절차). gold(3건)/trump(11건)/inflation(7건)은 코퍼스가 얇아 자식 없음 — 정직한 예외 (억지 자식 = 빈 줌인).",
+ "rates": [
+  {"id": "rates_bok", "label": "한국은행 / 기준금리", "keywords": ["한국은행", "한은", "기준금리", "금리 동결", "가계부채"]},
+  {"id": "rates_fed", "label": "연준 / 미 금리", "keywords": ["연준", "fed", "fomc", "파월", "powell", "국채금리", "treasury yield"]}
+ ],
+ "oil": [
+  {"id": "oil_geopol", "label": "중동발 유가", "keywords": ["유가 급등", "유가 상승", "호르무즈", "hormuz", "유가 하락"]},
+  {"id": "oil_refine", "label": "정유 / 정제마진", "keywords": ["정유", "정제마진", "refining margin", "에쓰오일"]}
+ ],
+ "supply": [
+  {"id": "supply_expand", "label": "증설 / 캐파 확장", "keywords": ["증설", "신공장", "신규 공장", "capa"]},
+  {"id": "supply_rare", "label": "희토류 / 핵심광물", "keywords": ["희토류", "rare earth", "핵심광물", "critical mineral", "소재 수급"]}
+ ],
+ "crypto": [
+  {"id": "crypto_stable", "label": "스테이블코인 / 규제", "keywords": ["스테이블코인", "stablecoin", "원화 코인", "가상자산 규제"]}
+ ],
+ "shipbuild": [
+  {"id": "sb_defense", "label": "함정 / 방산 조선", "keywords": ["함정", "군함", "잠수함", "해군", "MRO"]}
+ ],
+ "bio": [
+  {"id": "bio_clinical", "label": "임상 / 허가", "keywords": ["임상", "FDA", "clinical", "신약 허가", "품목허가"]},
+  {"id": "bio_adc", "label": "ADC / 항암", "keywords": ["ADC", "항체", "이중항체", "면역항암", "항암제"]},
+  {"id": "bio_cdmo", "label": "CDMO / 시밀러", "keywords": ["CDMO", "위탁생산", "바이오시밀러", "시밀러"]}
+ ],
+ "finance": [
+  {"id": "fin_bank", "label": "은행 / 금융지주", "keywords": ["은행", "금융지주", "이자이익", "NIM"]},
+  {"id": "fin_value", "label": "밸류업 / 주주환원", "keywords": ["밸류업", "주주환원", "자사주", "배당"]}
+ ],
+ "enter": [
+  {"id": "ent_game", "label": "게임", "keywords": ["게임", "신작", "MMORPG", "콘솔"]},
+  {"id": "ent_kpop", "label": "K팝 / 엔터", "keywords": ["K팝", "케이팝", "엔터", "아이돌", "월드투어", "앨범"]}
+ ],
+ "consumer": [
+  {"id": "cons_kbeauty", "label": "화장품 / K뷰티", "keywords": ["화장품", "K뷰티", "뷰티", "코스메틱"]},
+  {"id": "cons_kfood", "label": "K푸드 / 식품 수출", "keywords": ["K푸드", "라면", "식품 수출", "김밥", "불닭"]}
  ]
 }

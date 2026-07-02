@@ -36,6 +36,8 @@ from skg.database import make_repo
 
 MIN_COOCCUR = 4
 MAX_HEADLINES = 8  # per node / per edge kept for the panel
+MAX_EDGES = 60     # shipped-edge cap (w desc) — every shipped edge carries a summary
+SURGE_MIN_RECENT = 3  # fewer than 3 recent stories -> surge null (weekend/Monday noise)
 
 
 def _decay_weight(date_str: str) -> float:
@@ -94,6 +96,7 @@ def compute_theme_data(repo) -> dict:
     node_stance = defaultdict(Counter)
     edge_stance = defaultdict(Counter)
     te_heads = defaultdict(list)       # (theme, entity) -> headlines (drill level 3)
+    edge_entities = defaultdict(Counter)  # (a,b) -> entity story counts (auto-summary input)
     # per-day buckets: (theme, day) -> {count, bull, bear, neut}. Persisted as :ThemeDay nodes
     # (additive temporal layer for decay/trend/accumulation).
     theme_day = defaultdict(lambda: {"count": 0, "bull": 0, "bear": 0, "neut": 0})
@@ -130,6 +133,8 @@ def compute_theme_data(repo) -> dict:
         for a, b in combinations(parents, 2):
             cooc[(a, b)] += 1
             edge_stance[(a, b)][st] += 1
+            for ent in ents:
+                edge_entities[(a, b)][ent] += 1
             if len(edge_heads[(a, b)]) < 200:
                 edge_heads[(a, b)].append((date, ch, st))
 
@@ -143,6 +148,37 @@ def compute_theme_data(repo) -> dict:
         for d, t, s in sorted(hs, reverse=True):
             (neutral if s == "neutral" else stanced).append({"d": d, "t": t, "s": s})
         return diverse(stanced + neutral, MAX_HEADLINES)
+
+    # 급상승 (surge): last-2-day story rate vs the prior-7-day baseline, additive smoothing.
+    # Anchored on the LATEST story date in the corpus (not as_of): a morning run before the
+    # day's news pull would otherwise see a half-empty recent window and deflate every theme.
+    # Pure function of the corpus + as_of (deterministic); null under the volume floor so a
+    # quiet weekend can't fabricate a riser. OBSERVATION of news volume, not a signal.
+    import datetime as _dt
+    _cap = cfg.AS_OF_NOW[:10]
+    _days_with_news = [d for (_t, d) in theme_day if d and d <= _cap]
+    _anchor = max(_days_with_news) if _days_with_news else _cap
+    _d0 = _dt.date.fromisoformat(_anchor)
+    _recent_days = {(_d0 - _dt.timedelta(days=k)).isoformat() for k in (0, 1)}
+    _base_days = {(_d0 - _dt.timedelta(days=k)).isoformat() for k in range(2, 9)}
+    _per_theme_day = defaultdict(dict)
+    for (tt, d), b in theme_day.items():
+        _per_theme_day[tt][d] = b["count"]
+
+    def _surge_of(t):
+        days = _per_theme_day.get(t, {})
+        rec = sum(c for d, c in days.items() if d in _recent_days)
+        base = sum(c for d, c in days.items() if d in _base_days)
+        if rec < SURGE_MIN_RECENT:
+            return None, rec
+        return round((rec / 2 + 0.5) / (base / 7 + 0.5), 2), rec
+
+    # shipped children per parent (hierarchy payload for the frontend)
+    kids = defaultdict(list)
+    for t in freq:
+        p = parent_of(t)
+        if p:
+            kids[p].append(t)
 
     nodes = []
     maxwf = max(wfreq.values()) if wfreq else 1
@@ -174,11 +210,15 @@ def compute_theme_data(repo) -> dict:
         # daily volume series (last ~21 days) for the trend sparkline in the panel
         tdays = sorted((d, b["count"]) for (tt, d), b in theme_day.items() if tt == t)
         trend = [c for _, c in tdays[-21:]]
+        surge, recent_n = _surge_of(t)
         nodes.append({
             "id": t, "label": label_of(t), "freq": f,
             "parent": parent_of(t),            # None for parents; parent_id for children
             "level": 0 if is_parent(t) else 1,
+            "children": sorted(kids.get(t, [])),
             "heat": round(wf, 1),  # decay-weighted "지금 열기"
+            "surge": surge,        # 급상승 배율 (최근2일 vs 직전7일; null = 볼륨 미달)
+            "recent_n": recent_n,  # 최근 2일 스토리 수
             "size": 18 + 42 * (wf / maxwf),  # SIZE reflects recent heat, not raw count
             "summary": summaries.get("nodes", {}).get(t, ""),
             # stance bar uses DECAY-weighted counts -> reflects the CURRENT framing
@@ -194,13 +234,55 @@ def compute_theme_data(repo) -> dict:
         if w < MIN_COOCCUR:
             continue
         sc = edge_stance[(a, b)]
+        curated = summaries.get("edges", {}).get(f"{a}|{b}", "")
+        if curated:
+            summary, kind = curated, "curated"
+        else:
+            # deterministic templated fallback from counted data — every shipped edge
+            # explains itself ("함께 N건"만 있는 엣지 금지); curation upgrades it later
+            ents3 = [e for e, _ in edge_entities[(a, b)].most_common(3)
+                     if e and not str(e).startswith("MACRO:")][:3]
+            ent_part = f" · 주요 관련: {', '.join(ents3)}" if ents3 else ""
+            summary = (f"{label_of(a)}·{label_of(b)} — 최근 뉴스 {w}건에서 함께 등장{ent_part}"
+                       f" · 논조 긍정 {sc['bullish']}·부정 {sc['bearish']}·중립 {sc['neutral']}")
+            kind = "auto"
         edges.append({
             "a": a, "b": b, "w": w,
-            "summary": summaries.get("edges", {}).get(f"{a}|{b}", ""),
+            "summary": summary, "summary_kind": kind,
             "stance": {"bull": sc["bullish"], "bear": sc["bearish"], "neut": sc["neutral"]},
             "heads": top(edge_heads[(a, b)]),
         })
-    print(f"[view] {len(nodes)} themes, {len(edges)} edges with headlines+stance attached")
+    edges.sort(key=lambda e: (-e["w"], e["a"], e["b"]))
+    edges = edges[:MAX_EDGES]
+
+    # 이슈→종목→가격: real daily move + 52w position per related entity (export-time join;
+    # PriceSeries is refreshed every cron so this costs no new fetches)
+    from skg.analyze.headline_dedup import day_change_from_closes
+    ent_names = sorted({e["name"] for n in nodes for e in n["entities"]})
+    if ent_names and hasattr(repo, "_read"):
+        px = {r["n"]: r for r in repo._read(
+            "MATCH (i:Issuer)-[:HAS_PRICE]->(p:PriceSeries) WHERE i.name IN $names "
+            "RETURN i.name AS n, i.pos_52w AS pos, p.recent_closes_json AS c, "
+            "p.window_end AS we", names=ent_names)}
+        for n in nodes:
+            for e in n["entities"]:
+                r = px.get(e["name"])
+                e["chg"] = day_change_from_closes(r["c"], r["we"], cfg.AS_OF_NOW) if r else None
+                e["pos"] = r.get("pos") if r else None
+
+    # 급상승 랭킹: 실제 상승(>=1.2배)만 자격 — 데이터가 조용하면 빈 목록이 정직한 답
+    # (child가 오르면 그 child가 구체적 인사이트 — frontend가 부모 생략)
+    risers = sorted([n for n in nodes if n.get("surge") and n["surge"] >= 1.2],
+                    key=lambda n: (-n["surge"], -n["recent_n"], n["id"]))[:8]
+    rising = [{"id": n["id"], "label": n["label"], "surge": n["surge"],
+               "recent_n": n["recent_n"], "parent": n["parent"],
+               "why": (max(n["heads"], key=lambda h: h["d"])["t"] if n["heads"] else "")}
+              for n in risers]
+
+    print(f"[view] {len(nodes)} themes, {len(edges)} edges "
+          f"(summaries: {sum(1 for e in edges if e['summary_kind'] == 'curated')} curated / "
+          f"{sum(1 for e in edges if e['summary_kind'] == 'auto')} auto), "
+          f"{len(rising)} risers")
 
     # persist per-day buckets (:ThemeDay) — additive temporal layer for decay/trend/accumulation
     if hasattr(repo, "write_theme_days"):
@@ -210,7 +292,7 @@ def compute_theme_data(repo) -> dict:
         repo.write_theme_days(day_rows)
         print(f"[view] persisted {len(day_rows)} :ThemeDay buckets")
 
-    return {"nodes": nodes, "edges": edges,
+    return {"nodes": nodes, "edges": edges, "rising": rising,
             "summary_date": summaries.get("knowledge_time", "")[:10]}
 
 
