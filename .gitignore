@@ -7,6 +7,8 @@ lib/
 !web/public/data/
 # and the curated theme taxonomy (session-authored source the runtime loads, not transient)
 !/data/subthemes.json
+# and the curated bridge pairs (session-authored; verified at export by price co-movement)
+!/data/bridge_pairs.json
 
 # project snapshot dirs (local rollback copies)
 *-snapshot-*/

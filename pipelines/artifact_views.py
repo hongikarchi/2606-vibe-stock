@@ -134,6 +134,27 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
     issuers = [dict(r) for r in us_rows] + [dict(r) for r in kr_rows]
     for i in issuers:
         i.pop("news_n", None)  # ranking-only column (KR query); not part of the node payload
+
+    # verified bridges (뉴스 bridge-term 연결을 가격 co-movement로 검증한 쌍) — the curated
+    # pair list is session-authored data (data/bridge_pairs.json); z is recomputed here at
+    # export time so the shipped evidence always matches the shipped price windows
+    bridges = []
+    bp_file = cfg.ROOT / "data" / "bridge_pairs.json"
+    if bp_file.exists():
+        from skg.analyze.comovement import verify_bridge_pairs
+        pairs = json.loads(bp_file.read_text(encoding="utf-8")).get("pairs", [])
+        bridges = verify_bridge_pairs(repo, pairs, want_len=cfg.PRICE_WINDOW_DAYS)
+        # a VERIFIED edge must be drawable: force-include endpoints the top-N cut dropped
+        present = {i["name"] for i in issuers}
+        need = sorted({n for b in bridges if b["verified"] for n in (b["a"], b["b"])}
+                      - present)
+        if need:
+            extra = repo._read(
+                "MATCH (a:AnalysisResult {as_of:$as_of}) MATCH (i:Issuer {name:a.entity_id}) "
+                "WHERE i.name IN $names OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
+                f"RETURN {cols}", as_of=cfg.AS_OF_NOW, names=need)
+            issuers += [dict(r) for r in extra]
+
     iids = [i["iid"] for i in issuers]
 
     # per-issuer news headlines (drill-down evidence) — exclude junk (factory) outlets
@@ -189,4 +210,4 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) OPTIONAL MATCH (cl:Claim)-[:ABOUT]->(m) "
         "RETURN m.indicator_id AS id, m.name AS name, m.category AS cat, count(cl) AS news")]
-    return {"issuers": issuers, "macros": macros}
+    return {"issuers": issuers, "macros": macros, "bridges": bridges}

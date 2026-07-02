@@ -1,0 +1,10 @@
+{
+  "_comment": "Session-curated bridge pairs (code mines candidates via pipelines/mine_bridges.py, session curates here — same division of labor as data/subthemes.json). Verified at EXPORT time against price co-movement (skg/analyze/comovement.verify_bridge_pairs): z is the pair's residual corr vs the same/cross-sector baseline. Only cross-sector z>=3 ships as a graph edge; everything evaluated ships in the evidence list.",
+  "pairs": [
+    {"a": "일진전기", "b": "효성중공업", "label": "변압기/초고압"},
+    {"a": "LG에너지솔루션", "b": "포스코퓨처엠", "label": "ESS/전고체 (셀↔양극재)"},
+    {"a": "HD현대일렉트릭", "b": "일진전기", "label": "변압기/초고압"},
+    {"a": "삼성전기", "b": "대덕전자", "label": "FC-BGA"},
+    {"a": "LG이노텍", "b": "심텍", "label": "FC-BGA/HBM"}
+  ]
+}

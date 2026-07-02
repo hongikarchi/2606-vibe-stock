@@ -80,6 +80,48 @@ def residual_matrix(S: dict[str, list[float]]) -> tuple[list[str], dict[str, lis
     return names, {n: residualize(R[n], mkt, L) for n in names}, L
 
 
+def verify_bridge_pairs(repo, pairs: list[dict], want_len: int = 90) -> list[dict]:
+    """Verify curated news-bridge pairs against price co-movement (the news-independent
+    modality). Returns one dict per evaluable pair: residual corr, z vs the same/cross-sector
+    baseline, and verified = cross-sector AND z >= 3 (the single-window credibility bar —
+    z~2 is suggestive-not-robust on ~90d). Same computation the comovement_verify report
+    validated; shared here so the deployed artifact and the report can't drift apart."""
+    rows = repo._read(
+        "MATCH (i:Issuer)-[:HAS_PRICE]->(p:PriceSeries) WHERE i.issuer_id STARTS WITH 'DART' "
+        "OPTIONAL MATCH (i)-[:IN_SECTOR]->(s:Sector) "
+        "RETURN i.name AS n, p.recent_closes_json AS c, p.window_end AS we, s.name AS sec")
+    end_day, S, SEC = dominant_cohort(rows, want_len=want_len)
+    if len(S) < 20:
+        return []
+    names, mres, L = residual_matrix(S)
+    same, cross = sector_distributions(names, mres, SEC)
+    mu_s = statistics.mean(same) if same else 0.0
+    sd_s = statistics.pstdev(same) if same else 0.0
+    mu_c = statistics.mean(cross) if cross else 0.0
+    sd_c = statistics.pstdev(cross) if cross else 0.0
+    out = []
+    for p in pairs:
+        a, b, lbl = p["a"], p["b"], p["label"]
+        if a not in mres or b not in mres:
+            continue
+        rc = pearson(mres[a], mres[b])
+        if rc is None:
+            continue
+        same_sec = SEC[a] == SEC[b] and SEC[a] != "(none)"
+        mu, sd = (mu_s, sd_s) if same_sec else (mu_c, sd_c)
+        z = (rc - mu) / sd if sd else 0.0
+        out.append({
+            "a": a, "b": b, "label": lbl,
+            "r": round(rc, 2), "z": round(z, 1), "same_sector": same_sec,
+            "verified": bool(not same_sec and z >= 3.0),
+            "grade": ("검증" if not same_sec and z >= 3.0 else
+                      "시사" if not same_sec and z >= 1.5 else
+                      "자명(같은 섹터)" if same_sec else "미확인"),
+            "window_end": end_day, "days": L,
+        })
+    return sorted(out, key=lambda x: -x["z"])
+
+
 def sector_distributions(names: list[str], mres: dict[str, list[float]],
                          SEC: dict[str, str], min_n: int = 50) -> tuple[list[float], list[float]]:
     """(same_sector_corrs, cross_sector_corrs) over all pairs — the regime yardstick input.
