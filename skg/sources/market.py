@@ -131,7 +131,10 @@ class MarketFetcher:
             dd_json = ""
             if category == "index" and dd:
                 step = max(1, len(dd) // 120)
-                dd_json = json.dumps(dd[::step][-120:])
+                pts = dd[::step]
+                if pts[-1] != dd[-1]:
+                    pts.append(dd[-1])   # the spark must END at the true current drawdown
+                dd_json = json.dumps(pts[-120:])
             out.append(MacroIndicator(
                 indicator_id=f"MACRO:{ticker}", ticker=ticker, name=name, category=category,
                 last_close=closes[-1], window_start=dates[0], window_end=dates[-1],
