@@ -20,6 +20,7 @@ from __future__ import annotations
 import sys as _sys, pathlib as _pathlib
 _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
 
+import datetime
 import gzip
 import json
 from pathlib import Path
@@ -62,6 +63,23 @@ def dump_full_graph(repo) -> dict:
     }
 
 
+def price_fresh_pct(repo, as_of: str, days: int = 7) -> float:
+    """Share of :PriceSeries whose window ends within `days` of as_of — the gate's floor
+    against the silent-staleness class (price layer frozen under a fresh-looking label)."""
+    rows = repo._read("MATCH (p:PriceSeries) RETURN p.window_end AS we")
+    if not rows:
+        return 0.0
+    d0 = datetime.date.fromisoformat(as_of[:10])
+    ok = 0
+    for r in rows:
+        try:
+            if (d0 - datetime.date.fromisoformat(str(r["we"])[:10])).days <= days:
+                ok += 1
+        except (ValueError, TypeError):
+            pass
+    return round(100 * ok / len(rows), 1)
+
+
 def main() -> None:
     repo = make_repo(cfg)
     print("[artifacts] dumping full graph (backup, compressed)...")
@@ -81,6 +99,7 @@ def main() -> None:
         "as_of": cfg.AS_OF_NOW,
         "nodes": len(full["nodes"]),
         "rels": len(full["rels"]),
+        "price_fresh_pct": price_fresh_pct(repo, cfg.AS_OF_NOW),
         "views": ["themes", "dashboard", "emergent", "graph"],
     })
     print(f"[artifacts] DONE -> {OUT}")

@@ -374,6 +374,17 @@ class Neo4jRepository:
             out.append((iid, sym))
         return out
 
+    def get_price_series_index(self) -> list[tuple[str, str, str]]:
+        """(issuer_id, security_id, ticker) for every existing :PriceSeries — the market
+        refresh input. Unlike get_issuer_tickers (raw Listing tickers: 6-digit KR codes
+        yfinance can't resolve), the node's own ticker is the exact yfinance symbol that
+        produced it (incl. .KS/.KQ), so US and KR series both refresh in place."""
+        recs = self._read(
+            "MATCH (p:PriceSeries) RETURN p.issuer_id AS iid, p.security_id AS sid, "
+            "p.ticker AS ticker ORDER BY p.series_id"
+        )
+        return [(r["iid"], r["sid"], r["ticker"]) for r in recs]
+
     def get_issuer_tickers(self) -> list[tuple[str, str, str]]:
         """(issuer_id, security_id, ticker) for issuers that have a listing — the price fetcher input."""
         recs = self._read(

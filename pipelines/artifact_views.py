@@ -45,13 +45,16 @@ def build_dashboard_data(repo) -> dict:
 
     macros = [dict(r) for r in repo._read(
         "MATCH (m:MacroIndicator) RETURN m.name AS name, m.last_close AS px, "
-        "m.pct_change_window AS chg, m.category AS cat, m.recent_closes_json AS series "
+        "m.pct_change_window AS chg, m.category AS cat, m.recent_closes_json AS series, "
+        "m.window_end AS end "
         "ORDER BY m.category, m.name")]
     for m in macros:
         try:
             m["series"] = json.loads(m.get("series") or "[]")
         except Exception:  # noqa: BLE001
             m["series"] = []
+        # window-end date ships with the artifact so the gate can verify label==content
+        m["end"] = str(m.get("end") or "")[:10]
 
     sectors_raw = repo._read(
         "MATCH (i:Issuer)-[:IN_SECTOR]->(s:Sector) WHERE i.pos_52w IS NOT NULL "

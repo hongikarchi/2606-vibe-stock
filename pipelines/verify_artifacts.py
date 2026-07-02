@@ -20,15 +20,35 @@ the loop's own baseline-metric comparison handles drift; this is the hard floor.
 """
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
 import sys
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")   # fail messages carry Korean macro names
+except Exception:  # noqa: BLE001
+    pass
 
 DATA = pathlib.Path(__file__).resolve().parents[1] / "web" / "public" / "data"
 
 # Loose floors — well below normal (graph ~400, themes 52, emergent 120). A breach means
 # something structurally broke (empty export, missing reanalyze), not normal variation.
 FLOOR = {"graph_issuers": 380, "themes_nodes": 50, "emergent_terms": 100}
+
+# FRESHNESS — the 2026-07-02 audit found the 7 core macros frozen at 06-18/06-23 under an
+# 07-02 label (they were only refreshed by loop_build, never by the cron). market_refresh.py
+# fixes the refresh; these floors make the class of silent staleness unshippable.
+#
+# N-of-M, not per-macro veto (adversarial review 2026-07-02): a single stale macro is
+# upstream FEED LAG (^TNX verified 4 sessions behind at Yahoo itself — refetching cannot
+# heal it), and giving one third-party feed a veto over ALL shipping (news/themes included)
+# would block the long weekend. 1-2 stale = tolerated here, surfaced as WARN by
+# quality_report.py. >=MACRO_STALE_MAX stale = the refresh MECHANISM broke (the original
+# all-frozen defect fired with 7) -> block.
+MACRO_FRESH_DAYS = 7          # weekend + market-holiday tolerant
+MACRO_STALE_MAX = 3           # fail at >=3 stale macros (mechanism failure, not feed lag)
+PRICE_FRESH_FLOOR_PCT = 60.0  # share of price series fresh within 7d (dead tickers exist)
 
 # Retention guards (catch OVER-removal). These MUST appear in the published artifacts.
 # KR bellwether — its absence is the #2 audit defect AND a canary for empty/misranked KR set.
@@ -108,6 +128,40 @@ def check() -> list[str]:
         if future:
             fails.append(f"[label] {len(future)} displayed headline(s) post-date as_of "
                          f"{as_of_day} (max {max(future)}) — label claims fresher than content allows")
+
+    # 7. FRESHNESS — macro windows must end near as_of, and the price layer as a whole
+    #    must be mostly fresh (the label==content invariant, extended to market data).
+    #    N-of-M: single-feed lag tolerated (upstream latency, self-heals when the source
+    #    publishes); multi-macro staleness = refresh mechanism broke -> block.
+    if as_of:
+        as_of_d = datetime.date.fromisoformat(as_of[:10])
+        macros = dash.get("macros", [])
+        stale, dateless = [], 0
+        for m in macros:
+            end = (m.get("end") or "")[:10]
+            try:
+                age = (as_of_d - datetime.date.fromisoformat(end)).days
+            except ValueError:
+                dateless += 1
+                continue
+            if age > MACRO_FRESH_DAYS:
+                stale.append(f"{m.get('name')}={end}(+{age}d)")
+        if not macros:
+            fails.append("[fresh] dashboard.macros is empty — macro layer missing from export")
+        elif dateless == len(macros):
+            fails.append("[fresh] no macro carries a window-end date — dashboard built by "
+                         "pre-freshness-fix code; rebuild artifacts")
+        elif len(stale) >= MACRO_STALE_MAX:
+            fails.append(f"[fresh] {len(stale)} macro series stale >{MACRO_FRESH_DAYS}d vs "
+                         f"as_of {as_of_day} (mechanism failure at >={MACRO_STALE_MAX}): "
+                         + ", ".join(stale[:5]))
+        pf = meta.get("price_fresh_pct")
+        if pf is None:
+            fails.append("[fresh] meta.price_fresh_pct missing — rebuild artifacts with "
+                         "current export_artifacts.py")
+        elif pf < PRICE_FRESH_FLOOR_PCT:
+            fails.append(f"[fresh] price_fresh_pct={pf} < {PRICE_FRESH_FLOOR_PCT} — "
+                         "price windows mostly stale (did market_refresh run?)")
 
     return fails
 

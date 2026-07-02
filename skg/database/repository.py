@@ -43,6 +43,11 @@ class Repository(ABC):
     def write_macro(self, rows) -> None: ...
     def write_price_series(self, rows) -> None: ...
 
+    def get_price_series_index(self) -> list[tuple[str, str, str]]:
+        """(issuer_id, security_id, ticker) for every stored price series — the refresh
+        input. ticker is the exact yfinance symbol used at first fetch (incl. .KS/.KQ)."""
+        return []
+
     # ---- point-in-time reads (all filter knowledge_time <= as_of) ----
     @abstractmethod
     def get_active_universe(self, as_of: str) -> list[Issuer]:

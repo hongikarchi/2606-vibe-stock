@@ -40,6 +40,10 @@ if "%SKG_INCLUDE_KR%"=="1" (
   echo [run] kr_pull >> "%LOG%"
   python pipelines\kr_pull.py        >> "%LOG%" 2>&1
 )
+REM refresh core macro windows (환율/금리/유가/지수) + ALL price-series windows. Without this
+REM they only updated via loop_build (never in the cron) and silently froze - gate now checks.
+echo [run] market_refresh >> "%LOG%"
+python pipelines\market_refresh.py   >> "%LOG%" 2>&1
 echo [run] market_state_pull >> "%LOG%"
 python pipelines\market_state_pull.py >> "%LOG%" 2>&1
 REM keep index-membership tags current (non-destructive; never auto-prunes in the cron) ----
@@ -68,6 +72,10 @@ if errorlevel 1 (
   echo [gate] FAIL - not shipping. See log.
   goto :done
 )
+
+REM quality measurement (non-blocking diagnostics -> out/quality_report.md; gate already ran)
+echo [run] quality_report >> "%LOG%"
+python pipelines\quality_report.py   >> "%LOG%" 2>&1
 
 REM --- 3. commit + push only if the app data actually changed ----------------
 git add web/public/data >> "%LOG%" 2>&1
