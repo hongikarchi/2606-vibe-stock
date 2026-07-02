@@ -35,6 +35,11 @@ import config as cfg
 
 # calibrated on live data (module docstring): true rewrites chain >=0.40, junk stays <=0.20
 STORY_BIGRAM_OVERLAP = 0.40
+# adjacent-day merges demand near-copy similarity: at 0.40 a day with hundreds of roots
+# absorbed nearly ALL of the next day's stories (observed live: 06-30's 357 quality claims
+# collapsed to 5 groups — the daily trend died). Cross-midnight COPIES merge at 0.75;
+# next-day RE-COVERAGE of the same event legitimately counts as that day's story.
+ADJACENT_DAY_OVERLAP = 0.75
 
 _NONWORD = re.compile(r"[^0-9a-z가-힣]")
 
@@ -187,7 +192,8 @@ def collapse_groups(records: list[dict], thr: float = STORY_BIGRAM_OVERLAP) -> l
             if rj != j:
                 continue   # not a root — already merged
             for r0 in prev_roots:
-                if _ents_compatible(r0, j) and _same_story(grams[r0], grams[j], thr):
+                if (_ents_compatible(r0, j)
+                        and _same_story(grams[r0], grams[j], ADJACENT_DAY_OVERLAP)):
                     union(r0, j)
                     break
 
