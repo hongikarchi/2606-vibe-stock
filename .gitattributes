@@ -1,0 +1,2 @@
+# cmd.exe misparses LF-only batch files (comment fragments execute as commands)
+*.bat text eol=crlf
