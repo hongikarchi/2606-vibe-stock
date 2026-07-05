@@ -240,6 +240,7 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
     # price join for the treemap: daily change (staleness-guarded) + US mktcap tracking
     from skg.analyze.headline_dedup import day_change_from_closes
     from skg.export.dashboard import _ksic_name
+    from skg.analyze.sic_sectors import classify, classify_ksic
     px = {r["iid"]: r for r in repo._read(
         "MATCH (i:Issuer)-[:HAS_PRICE]->(p:PriceSeries) WHERE i.issuer_id IN $iids "
         "RETURN i.issuer_id AS iid, p.last_close AS last, p.recent_closes_json AS c, "
@@ -285,12 +286,20 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
             # "KSIC 2612" raw codes -> Korean industry names (was dashboard-only)
             if str(i.get("sid") or "").startswith("KSIC"):
                 i["sector"] = _ksic_name(i.get("sic"))
+            # finviz 2-level: 대분류 sector_l1 (11개 공통) + 소분류 industry
+            l1, ind, en = classify_ksic(i.get("sector") or "")
+            i["sector_l1"], i["industry"], i["sector_en"] = l1, ind, en
         else:
             sh, raw = i.get("sh_out"), i.get("mktcap_raw")
             i["mktcap"] = (round(sh * p["last"]) if (sh and p and p.get("last"))
                            else (raw if raw else None))
             i["ccy"] = "USD"
             i["chg"] = day_change_from_closes(p["c"], p["we"], cfg.AS_OF_NOW) if p else None
+            # SIC 2-digit division was too coarse (NVIDIA/Apple/Tesla all '제조업');
+            # 4-digit SIC -> finviz (sector, industry) so blocks read like finviz.com/map
+            l1, ind, en = classify(i.get("sic"))
+            i["sector_l1"], i["industry"], i["sector_en"] = l1, ind, en
+            # keep i["sector"] = the raw SIC description for the detail panel
         # 편향 방어층 표면: 근거 span 극성 재검토 대상 (grounding — 관측, 자동 정정 아님)
         try:
             flags = _json.loads(i.pop("fj", None) or "{}")

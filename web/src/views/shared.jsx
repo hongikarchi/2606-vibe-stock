@@ -62,7 +62,7 @@ export function IssuerPanel({ i, bridges, onSelect, canSelect }) {
     <>
       <h2>{i.name}</h2>
       <div className="sub">
-        {i.sector || "?"}{i.rank ? <> · PPR #{i.rank}</> : null}
+        {i.sector_l1 ? `${i.sector_l1} · ${i.industry || i.sector || ""}` : (i.sector || "?")}{i.rank ? <> · PPR #{i.rank}</> : null}
         {i.pos != null && <> · 52주 위치 <b style={{ color: i.pos >= 70 ? "#6BCB77" : i.pos <= 30 ? "#FF6B6B" : "#aaa" }}>{Math.round(i.pos)}%</b></>}
         {i.mdd != null && <> · 1년 최대낙폭 <b className="neg">{(i.mdd * 100).toFixed(1)}%</b></>}
       </div>
