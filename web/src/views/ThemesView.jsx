@@ -59,7 +59,8 @@ export default function ThemesView({ useArtifact }) {
   const canvasRef = useRef(null);
   const netRef = useRef(null);
   const [sel, setSel] = useState(null); // {kind:'node'|'edge'|'ent', ...}
-  const [trail, setTrail] = useState([]);
+  // 패널 내비게이션 히스토리: 깊이 들어간 만큼 '← 뒤로'로 되돌아갈 수 있게 (UX 요청 #1)
+  const [hist, setHist] = useState([]);
 
   const byId = data ? Object.fromEntries(data.nodes.map((n) => [n.id, n])) : {};
   const edgeBetween = (a, b) => data?.edges.find((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
@@ -202,16 +203,16 @@ export default function ThemesView({ useArtifact }) {
           // clicking a collapsed blob opens it (calmly) AND shows the parent panel
           const pid = id.slice(CLUSTER_PREFIX.length);
           openCalm(id);
-          setTrail([]); setSel({ kind: "node", id: pid });
+          setHist([]); setSel({ kind: "node", id: pid });
           return;
         }
-        setTrail([]); setSel({ kind: "node", id });
+        setHist([]); setSel({ kind: "node", id });
       } else if (p.edges.length) {
         const eid = p.edges[0];
         if (typeof eid === "string" && eid.startsWith("e")) {
           const idx = parseInt(eid.slice(1));
           const e = data.edges[idx];
-          if (e) { setTrail([]); setSel({ kind: "edge", a: e.a, b: e.b }); }
+          if (e) { setHist([]); setSel({ kind: "edge", a: e.a, b: e.b }); }
         }
       }
     });
@@ -221,14 +222,47 @@ export default function ThemesView({ useArtifact }) {
   if (!data) return <div className="loading">불러오는 중…</div>;
 
   // riser 클릭 → 해당 클러스터 열고 노드 포커스 + 패널 열기
-  const focusNode = (id) => {
+  // 그래프 쪽 동기화: 클러스터 열고 노드로 이동 + 선택 하이라이트 (패널 조작 = 그래프 반영, 요청 #2)
+  const syncGraphNode = (id) => {
     const net = netRef.current;
     const n = byId[id];
     if (!net || !n) return;
     const cid = CLUSTER_PREFIX + (n.level === 1 ? n.parent : id);
     try { if (net._openCalm) net._openCalm(cid); } catch (e) { /* none */ }
+    try { net.selectNodes([id]); } catch (e) { /* none */ }
     try { net.focus(id, { scale: 0.9, animation: true }); } catch (e) { /* none */ }
-    setTrail([]); setSel({ kind: "node", id });
+  };
+  const syncGraphEdge = (a, b) => {
+    const net = netRef.current;
+    if (!net || !data) return;
+    [a, b].forEach((pid) => {
+      const p = byId[pid];
+      const cid = CLUSTER_PREFIX + (p && p.level === 1 ? p.parent : pid);
+      try { if (net._openCalm) net._openCalm(cid); } catch (e) { /* none */ }
+    });
+    const idx = data.edges.findIndex((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+    if (idx >= 0) { try { net.setSelection({ edges: ["e" + idx] }); } catch (e) { /* none */ } }
+    try { net.fit({ nodes: [a, b], animation: true }); } catch (e) { /* none */ }
+  };
+
+  // 패널 내비게이션 (요청 #1): 깊이 이동은 navigate()로 히스토리에 쌓고, ← 뒤로 / ⌂ 목록 제공
+  const navigate = (next) => {
+    if (sel) setHist((h) => [...h, sel]);
+    setSel(next);
+  };
+  const goBack = () => {
+    if (!hist.length) { setSel(null); return; }
+    const prev = hist[hist.length - 1];
+    setHist((h) => h.slice(0, -1));
+    setSel(prev);
+    if (prev?.kind === "node") syncGraphNode(prev.id);
+    else if (prev?.kind === "edge") syncGraphEdge(prev.a, prev.b);
+  };
+  const goHome = () => { setHist([]); setSel(null); };
+
+  const focusNode = (id) => {   // 리스트/그래프發 새 진입점: 히스토리 리셋
+    syncGraphNode(id);
+    setHist([]); setSel({ kind: "node", id });
   };
 
   // 랜딩 = 급상승 랭킹 (인사이트 우선). rising이 비면 열기(heat) 상위로 폴백 + 정직한 라벨.
@@ -272,12 +306,15 @@ export default function ThemesView({ useArtifact }) {
     if (!n) { panel = <div className="legend">…</div>; }
     else {
       const kids = data.nodes.filter((c) => c.level === 1 && c.parent === n.id);
-      const goEdge = (otherId) => { setTrail([...trail, { label: n.label }]); const e = edgeBetween(n.id, otherId); if (e) setSel({ kind: "edge", a: e.a, b: e.b }); };
-      const goEnt = (ent) => { setTrail([...trail, { label: n.label }]); setSel({ kind: "ent", ent, themeLabel: n.label }); };
-      const goChild = (cid) => { setTrail([...trail, { label: n.label }]); setSel({ kind: "node", id: cid }); };
+      const goEdge = (otherId) => {
+        const e = edgeBetween(n.id, otherId);
+        if (e) { navigate({ kind: "edge", a: e.a, b: e.b }); syncGraphEdge(e.a, e.b); }
+      };
+      const goEnt = (ent) => navigate({ kind: "ent", ent, themeLabel: n.label });
+      const goChild = (cid) => { navigate({ kind: "node", id: cid }); syncGraphNode(cid); };
       panel = (
         <>
-          <Crumbs trail={trail} />
+          <PanelNav onBack={goBack} onHome={goHome} depth={hist.length} />
           <h2>{n.label}{n.level === 1 && n.parent && byId[n.parent] && <span style={{ fontSize: 13, color: "#789" }}> · {byId[n.parent].label}</span>}</h2>
           <div className="sub">뉴스 {n.freq}건 · <span style={{ color: "#FFD93D" }}>지금 열기 {n.heat}</span> <span style={{ color: "#667" }}>(최근 가중)</span></div>
           {n.isolated && <div className="legend">⚪ 이 이슈는 현재 코퍼스에서 다른 이슈와의 동시등장 표본이 부족해 연결선이 없습니다 (강제 연결 대신 정직한 공백).</div>}
@@ -316,7 +353,7 @@ export default function ThemesView({ useArtifact }) {
     const e = edgeBetween(sel.a, sel.b);
     panel = (
       <>
-        <Crumbs trail={trail} />
+        <PanelNav onBack={goBack} onHome={goHome} depth={hist.length} />
         <h2>{byId[sel.a]?.label} ↔ {byId[sel.b]?.label}</h2>
         <div className="sub">
           같은 기사에 {e?.w}건 함께 등장
@@ -332,7 +369,7 @@ export default function ThemesView({ useArtifact }) {
   } else if (sel.kind === "ent") {
     panel = (
       <>
-        <Crumbs trail={trail} />
+        <PanelNav onBack={goBack} onHome={goHome} depth={hist.length} />
         <h2>{sel.ent.name}</h2>
         <div className="sub">{sel.themeLabel} 맥락의 뉴스 {sel.ent.n}건</div>
         <div className="seclabel">이 기업 헤드라인</div>
@@ -353,7 +390,12 @@ export default function ThemesView({ useArtifact }) {
   );
 }
 
-function Crumbs({ trail }) {
-  if (trail.length < 1) return null;
-  return <div className="crumbs">{trail.map((t, i) => <span key={i}>{t.label} ▸ </span>)}</div>;
+function PanelNav({ onBack, onHome, depth }) {
+  return (
+    <div className="panelnav">
+      <button onClick={onBack}>← 뒤로</button>
+      <button onClick={onHome}>⌂ 뜨는 이슈</button>
+      {depth > 0 && <span className="depth">깊이 {depth + 1}</span>}
+    </div>
+  );
 }

@@ -94,6 +94,13 @@ body {
 .mmap-legend span { display: inline-block; padding: 2px 6px; font-size: 10px; color: #dde;
   border-radius: 3px; }
 
+/* 이슈연관망 패널 내비게이션 (뒤로/처음) */
+.panelnav { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.panelnav button { background: #1a2230; color: #cde; border: 1px solid #2a3a52;
+  padding: 4px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; }
+.panelnav button:hover { background: #22304a; color: #fff; }
+.panelnav .depth { color: #667; font-size: 11px; margin-left: auto; }
+
 /* 이슈연관망 급상승 리스트 (RiserList) */
 .riser { display: flex; gap: 10px; padding: 9px 6px; border-bottom: 1px solid #1c2432;
   cursor: pointer; align-items: baseline; }
