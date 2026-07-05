@@ -99,9 +99,11 @@ export default function ThemesView({ useArtifact }) {
     const eMax = Math.max(...data.edges.map((e) => e.w), 1);
     const coocc = data.edges.map((e, i) => ({
       id: "e" + i, from: e.a, to: e.b, value: e.w,
-      width: e.weak ? 1 : 1 + 9 * (e.w / eMax),
+      // 볼륨성(기대 대비 <1.5배) 엣지는 가늘게 — 큰 테마끼리의 우연 동시등장과
+      // 진짜 특이 연관(lift 높음)을 시각적으로 구분
+      width: e.weak ? 1 : e.volume_only ? 1.5 : 1 + 9 * (e.w / eMax),
       dashes: e.weak ? [4, 6] : false,   // 약한 연결(표본 적음)은 점선
-      color: { color: e.weak ? "#66779955" : "#8899bb55", highlight: "#5AC8FA" },
+      color: { color: e.weak ? "#66779955" : e.volume_only ? "#66779944" : "#8899bb55", highlight: "#5AC8FA" },
       title: e.summary ? e.summary.slice(0, 60) + (e.summary.length > 60 ? "…" : "") : undefined,
     }));
 
@@ -316,7 +318,11 @@ export default function ThemesView({ useArtifact }) {
       <>
         <Crumbs trail={trail} />
         <h2>{byId[sel.a]?.label} ↔ {byId[sel.b]?.label}</h2>
-        <div className="sub">같은 기사에 {e?.w}건 함께 등장</div>
+        <div className="sub">
+          같은 기사에 {e?.w}건 함께 등장
+          {e?.lift != null && <> · 우연 기대 대비 <b style={{ color: e.lift >= 3 ? "#FFD93D" : e.lift >= 1.5 ? "#9fd" : "#889" }}>{e.lift}배</b></>}
+          {e?.volume_only && <span style={{ color: "#889" }}> (볼륨성 — 특이 연관 약함)</span>}
+        </div>
         {e?.summary && <div className="summary"><span className="tag">📝 어떻게 엮이나</span>{e.summary}</div>}
         {e && <StanceBar stance={e.stance} />}
         <div className="seclabel">함께 다룬 헤드라인</div>

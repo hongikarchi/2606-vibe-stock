@@ -26,9 +26,12 @@ STATE_TICKERS = {
 
 def fetch_52w_stats(issuer_tickers, knowledge_time, batch=80):
     """issuer_tickers = [(issuer_id, yf_symbol)]. Returns
-    {issuer_id: {"pos": 52w-position 0-100, "mdd": 1y max drawdown (negative fraction)}}.
-    Both from the SAME 1-year daily batch download the breadth read always made —
-    the per-stock MDD costs zero extra API calls."""
+    {issuer_id: {"pos": 52w-position 0-100, "mdd": 1y max drawdown (negative fraction),
+                 "closes": [~250 daily closes], "dates": [ISO days]}}.
+    All from the SAME 1-year daily batch download the breadth read always made — the
+    2026-07-05 sufficiency audit found this batch was fetched then THROWN AWAY, capping
+    every longer-horizon analysis at the 90-bar PriceSeries window. Keeping it costs
+    zero extra API calls and unlocks multi-window co-movement / regime verification."""
     import yfinance as yf
     from ..sources.market import _max_drawdown
     stats = {}
@@ -45,11 +48,13 @@ def fetch_52w_stats(issuer_tickers, knowledge_time, batch=80):
                 c = df[sym]["Close"].dropna()
                 if len(c) < 50:
                     continue
-                closes = [float(x) for x in c.tolist()]
+                closes = [round(float(x), 4) for x in c.tolist()]
                 hi, lo, cur = max(closes), min(closes), closes[-1]
                 if hi > lo:
                     stats[iid] = {"pos": round((cur - lo) / (hi - lo) * 100, 1),
-                                  "mdd": round(_max_drawdown(closes), 4)}
+                                  "mdd": round(_max_drawdown(closes), 4),
+                                  "closes": closes,
+                                  "dates": [d.strftime("%Y-%m-%d") for d in c.index]}
             except Exception:  # noqa: BLE001
                 continue
         time.sleep(0.3)  # polite between batches

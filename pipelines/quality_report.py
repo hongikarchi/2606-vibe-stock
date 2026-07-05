@@ -134,6 +134,13 @@ def collect(repo, as_of: str) -> dict:
             100 * sum(1 for e in edges_art if e.get("summary_kind") == "curated")
             / (len(edges_art) or 1), 1)
         q["w_surface"]["rising_top"] = [r["id"] for r in themes_art.get("rising", [])][:5]
+        # 요약 논조 게이트 (감사 W2 요약층): freq<30 테마의 요약에 논조-경향 주장이 있으면
+        # 위반 — n<30에선 이항 CI가 ±18%p를 넘어 비율 서술이 통계적으로 무의미
+        import re as _re
+        _trend = _re.compile(r"논조[^.]{0,25}(우세|짙|뚜렷|우위)")
+        q["w_surface"]["summary_stance_violations"] = sorted(
+            n["id"] for n in themes_art.get("nodes", [])
+            if n.get("freq", 99) < 30 and _trend.search(n.get("summary") or ""))
         dash_art = json.loads((cfg.ROOT / "web" / "public" / "data" / "dashboard.json")
                               .read_text(encoding="utf-8"))
         q["w_surface"]["macro_mdd_n"] = sum(
@@ -195,6 +202,10 @@ def verdicts(q: dict) -> list[tuple[str, str, str]]:
             f"{w.get('macro_mdd_n')}/12 macros")
         chk(w.get("edge_curated_pct", 0) >= 50, "theme edge curation",
             f"{w.get('edge_curated_pct')}% curated (나머지는 자동 템플릿)")
+        viol = w.get("summary_stance_violations", [])
+        chk(not viol, "summary stance gate",
+            ("표본<30 테마에 논조-경향 문장: " + ", ".join(viol[:4])) if viol
+            else "얇은 테마 요약에 경향 주장 없음")
     chk(q["gate"]["pass"], "artifact gate", "; ".join(q["gate"]["fails"][:2]) or "all invariants hold")
     return v
 

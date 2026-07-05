@@ -252,10 +252,13 @@ def main() -> None:
     repo.close()
 
     cfg.OUT.mkdir(parents=True, exist_ok=True)
-    (cfg.OUT / "flow_clusters.json").write_text(
-        json.dumps({"as_of": as_of, "markets": results}, ensure_ascii=False, indent=2),
-        encoding="utf-8")
+    payload = json.dumps({"as_of": as_of, "markets": results}, ensure_ascii=False, indent=2)
+    (cfg.OUT / "flow_clusters.json").write_text(payload, encoding="utf-8")
     (cfg.OUT / "flow_clusters.md").write_text(render(results, as_of), encoding="utf-8")
+    # as_of별 아카이브 — 한 달 뒤 첫 창간 ARI(클러스터 지속성) 측정의 전제 (감사 해금 #1)
+    hist = cfg.ROOT / "data" / "history" / "flow"
+    hist.mkdir(parents=True, exist_ok=True)
+    (hist / f"flow_{as_of[:10]}.json").write_text(payload, encoding="utf-8")
     for r in results:
         if r.get("skipped"):
             print(f"[flow] {r['market']}: skipped ({r['skipped']})")

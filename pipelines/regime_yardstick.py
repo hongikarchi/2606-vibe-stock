@@ -70,6 +70,64 @@ def _window_dists(names: list[str], R: dict[str, list[float]], SEC: dict[str, st
     return {"same": s, "cross": c, "days": L}
 
 
+def _reference_windows(market: str, want_len: int = 90, stride: int = 21) -> list[dict]:
+    """Rolling-window reference distribution from the one-time 3y backfill
+    (data/history/px_3y/<market>.json.gz, pipelines/backfill_history.py). Each window:
+    same/cross-sector residual-corr gap + cross-μ — the history that lets the CURRENT
+    window be placed as a percentile instead of a bare n=1 scalar.
+    SURVIVORSHIP CAVEAT: backfill covers today's universe; fine for dispersion structure,
+    never for return claims."""
+    import gzip
+    p = cfg.ROOT / "data" / "history" / "px_3y" / f"{market}.json.gz"
+    if not p.exists():
+        return []
+    import numpy as np
+    data = json.loads(gzip.open(p, "rt", encoding="utf-8").read())
+    tickers = data["tickers"]
+    all_dates = sorted({d for v in tickers.values() for d in v["dates"]})
+    if len(all_dates) < want_len + stride:
+        return []
+    out = []
+    for end_i in range(want_len, len(all_dates), stride):
+        end_date = all_dates[end_i]
+        names, rows, secs = [], [], []
+        for n, v in sorted(tickers.items()):
+            ds = v["dates"]
+            # last want_len bars ending at/before end_date, ticker must trade near the end
+            k = len([d for d in ds if d <= end_date])
+            if k < want_len or (ds[k - 1] < all_dates[max(0, end_i - 5)]):
+                continue
+            closes = v["closes"][k - want_len:k]
+            rows.append(closes)
+            names.append(n)
+            secs.append(v["sector"])
+        if len(names) < MIN_NAMES:
+            continue
+        X = np.diff(np.array(rows), axis=1) / np.array(rows)[:, :-1]
+        mkt = X.mean(axis=0)
+        beta = ((X - X.mean(axis=1, keepdims=True)) @ (mkt - mkt.mean())) / \
+               ((mkt - mkt.mean()) @ (mkt - mkt.mean()))
+        resid = X - np.outer(beta, mkt)
+        C = np.corrcoef(resid)
+        sec_arr = np.array(secs)
+        same_mask = (sec_arr[:, None] == sec_arr[None, :]) & (sec_arr[:, None] != "(none)")
+        iu = np.triu_indices(len(names), k=1)
+        same_vals = C[iu][same_mask[iu]]
+        cross_vals = C[iu][~same_mask[iu]]
+        if not len(same_vals) or not len(cross_vals):
+            continue
+        out.append({"end": end_date, "n": len(names),
+                    "gap": round(float(same_vals.mean() - cross_vals.mean()), 4),
+                    "cross_mu": round(float(cross_vals.mean()), 4)})
+    return out
+
+
+def _percentile(vals: list[float], x: float) -> float:
+    if not vals:
+        return 0.0
+    return round(100 * sum(1 for v in vals if v <= x) / len(vals), 1)
+
+
 def analyze_market(repo, label: str, cypher: str) -> dict | None:
     rows = repo._read(cypher)
     end_day, S, SEC = dominant_cohort(rows, want_len=cfg.PRICE_WINDOW_DAYS)
@@ -89,10 +147,24 @@ def analyze_market(repo, label: str, cypher: str) -> dict | None:
     ordered = all(g is not None and g > 0 for g in gaps)
     retained = (ordered and full["same"]["gap"] and
                 all(w["same"]["gap"] >= GAP_RETAIN * full["same"]["gap"] for w in (h1, h2)))
+
+    # 역사 참조 (3y 백필이 있으면): 현재 창의 gap / cross-μ 를 역사 분포의 백분위로
+    ref = _reference_windows(label)
+    hist = None
+    if ref:
+        hist = {
+            "windows": len(ref), "span": f"{ref[0]['end']} ~ {ref[-1]['end']}",
+            "gap_pct": _percentile([r["gap"] for r in ref], full["same"]["gap"]),
+            "cross_mu_pct": _percentile([r["cross_mu"] for r in ref], full["cross"]["mu"]),
+            "gap_hist_med": round(statistics.median(r["gap"] for r in ref), 4),
+            "cross_hist_med": round(statistics.median(r["cross_mu"] for r in ref), 4),
+        }
+
     return {
         "market": label, "end_day": end_day, "issuers": len(names), "returns_days": L,
         "full": full, "half1": h1, "half2": h2,
         "stable": bool(ordered and retained),
+        "history": hist,
         "gate": {"ordering_all_windows": ordered, "halves_retain_gap": bool(retained),
                  "gap_full": full["same"]["gap"], "gap_h1": h1["same"]["gap"],
                  "gap_h2": h2["same"]["gap"]},
@@ -124,6 +196,15 @@ def render(results: list[dict], as_of: str) -> str:
                     if abs(cross_mu) < 0.05 else
                     "매크로 일제동조 성향 — 다른-섹터끼리도 함께 움직임 (risk-on/off 국면)")
             L.append(f"- 관측: {tape} (다른-섹터 μ={cross_mu:+.3f})")
+            h = r.get("history")
+            if h:
+                L.append(f"- **역사 대비** (3년 롤링 {h['windows']}개 창, {h['span']}): "
+                         f"현재 응집 격차는 역사 분포의 **{h['gap_pct']}백분위** "
+                         f"(역사 중앙값 {h['gap_hist_med']:+.3f}), 다른-섹터 동조는 "
+                         f"{h['cross_mu_pct']}백분위 — 현 우주 기준 백필이라 생존편향 있음(구조 비교용).")
+            else:
+                L.append("- 역사 참조 없음 — `pipelines/backfill_history.py` 1회 실행 시 "
+                         "'지금이 이례적인가'가 백분위로 표시됨.")
         else:
             L.append(f"- 게이트 상세: 순서유지={g['ordering_all_windows']} · "
                      f"반분창 격차유지={g['halves_retain_gap']} "
@@ -145,10 +226,13 @@ def main() -> None:
     repo.close()
 
     cfg.OUT.mkdir(parents=True, exist_ok=True)
-    (cfg.OUT / "regime_yardstick.json").write_text(
-        json.dumps({"as_of": as_of, "markets": results}, ensure_ascii=False, indent=2),
-        encoding="utf-8")
+    payload = json.dumps({"as_of": as_of, "markets": results}, ensure_ascii=False, indent=2)
+    (cfg.OUT / "regime_yardstick.json").write_text(payload, encoding="utf-8")
     (cfg.OUT / "regime_report.md").write_text(render(results, as_of), encoding="utf-8")
+    # as_of별 아카이브 — 덮어쓰기만 하면 창 간 비교가 영원히 n=1 (충분성 감사 해금 #1)
+    hist = cfg.ROOT / "data" / "history" / "regime"
+    hist.mkdir(parents=True, exist_ok=True)
+    (hist / f"regime_{as_of[:10]}.json").write_text(payload, encoding="utf-8")
 
     for r in results:
         if r.get("skipped"):

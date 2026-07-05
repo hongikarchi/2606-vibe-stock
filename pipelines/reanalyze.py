@@ -60,6 +60,20 @@ def main() -> None:
     trusted_share = {v: (trust_mass[v] / tot_mass[v] if tot_mass[v] else 0.0) for v in tot_mass}
     k_eff = {v: len(s) for v, s in groups.items()}
 
+    # 편향 방어층 첫 프로덕션 가동 (충분성 감사 해금 #2 — 이전엔 flags={} 하드코딩으로
+    # 탐지기가 라이브에서 한 번도 안 돌았음). grounding = 근거 span의 극성 무결성 검사:
+    # "소송 기각"류 부정/인용 포함 span 위에 선 risk_flag/stance 주장을 재검토 대상으로 표시.
+    # omission/stance-dispersion은 요약문 코퍼스가 없어 정의역 밖(비활성) — 정직하게 미배선.
+    from skg.analyze.detectors import grounding as _grounding
+    g_by_subj = defaultdict(list)
+    g_total = 0
+    for f in _grounding(claims):
+        g_total += 1
+        if len(g_by_subj[f["subject"]]) < 3:
+            g_by_subj[f["subject"]].append({"issue": f["issue"], "span": (f["span"] or "")[:90]})
+    print(f"[reanalyze] grounding flags: {g_total} claims across {len(g_by_subj)} entities "
+          "(극성 재검토 대상 — 관측, 자동 정정 아님)")
+
     g_naive = build_naive(claims)
     g_cred, seeds = build_credible(claims, sources)
     naive_scores = pagerank.naive_ppr(g_naive)
@@ -83,7 +97,8 @@ def main() -> None:
             ppr_naive=naive_entities.get(node, 0.0), ppr_credible=score,
             rank_naive=naive_rank.get(node, 0), rank_credible=rk,
             k_effective=k_eff.get(node, 0), m_raw=m_raw.get(node, 0),
-            trusted_share=round(trusted_share.get(node, 0.0), 3), flags={},
+            trusted_share=round(trusted_share.get(node, 0.0), 3),
+            flags=({"grounding": g_by_subj[node]} if node in g_by_subj else {}),
         ))
     repo.write_analysis_results(results)
     print(f"[reanalyze] wrote {len(results)} ranked entities")

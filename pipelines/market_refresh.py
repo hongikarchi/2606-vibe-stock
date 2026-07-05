@@ -92,6 +92,15 @@ def main() -> None:
             snap = fetch_krx_snapshot()
             repo.set_issuer_krx_state(snap, as_of)
             print(f"[refresh] KRX snapshot: {len(snap)} rows stamped (mktcap/거래대금/등락)")
+            # 시계열 축 시작 (충분성 감사 해금 #1): 스냅샷을 날짜별로 append — 덮어쓰기 모델은
+            # '평소 대비' 류 주장을 하나도 못 받침. 같은 날 재실행은 최신본으로 갱신(멱등).
+            import gzip
+            import json as _json
+            hist = cfg.ROOT / "data" / "history" / "krx"
+            hist.mkdir(parents=True, exist_ok=True)
+            with gzip.open(hist / f"{as_of[:10]}.json.gz", "wt", encoding="utf-8") as f:
+                _json.dump(snap, f, ensure_ascii=False)
+            print(f"[refresh] KRX snapshot archived -> data/history/krx/{as_of[:10]}.json.gz")
         except Exception as e:  # noqa: BLE001 — a scrape hiccup must not kill the cron
             print(f"[refresh] WARN KRX snapshot failed ({type(e).__name__}: {e}) — "
                   "previous snapshot stays, krx_date shows its age")

@@ -90,6 +90,18 @@ export function IssuerPanel({ i, bridges, onSelect, canSelect }) {
           )}
         </div>
       )}
+      {i.grounding?.length > 0 && <>
+        <div className="seclabel">⚠️ 근거 재검토 대상 (자동 감지 · 관측)</div>
+        <div className="legend" style={{ marginBottom: 4 }}>
+          아래 뉴스 문구는 부정·인용·유보 표현을 포함해, 자동 분류된 긍정/부정·리스크 표시가
+          실제 극성과 다를 수 있습니다 (예: "소송 <b>기각</b>"은 리스크 해소).
+        </div>
+        {i.grounding.map((g, k) => (
+          <div key={k} className="hd" style={{ borderColor: "#8a6d1a" }}>
+            <span className="dt">{g.issue === "polarity-inverted" ? "극성 반전 가능" : "인용/유보 표현"}</span><br />{g.span}
+          </div>
+        ))}
+      </>}
       {i.themes?.length > 0 && <>
         <div className="seclabel">관련 이슈</div>
         <div className="chips">{i.themes.map((t) => <span key={t.id} className="chip">{t.label} <span style={{ color: "#8ab" }}>{t.n}</span></span>)}</div>

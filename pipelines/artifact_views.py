@@ -158,6 +158,7 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
 
     import json as _json
     cols = ("a.entity_id AS name, a.ppr_credible AS ppr, a.rank_credible AS rank, "
+            "a.flags_json AS fj, "
             "i.issuer_id AS iid, i.pos_52w AS pos, s.sector_id AS sid, s.name AS sector, "
             "s.sic_code AS sic, i.ratings_consensus AS rc, i.ratings_changes AS rch, "
             "i.mktcap AS mktcap_kr, i.shares_outstanding AS sh_out, "
@@ -290,6 +291,15 @@ def build_graph_data(repo, top_n: int = 400, kr_slots: int = 120) -> dict:
                            else (raw if raw else None))
             i["ccy"] = "USD"
             i["chg"] = day_change_from_closes(p["c"], p["we"], cfg.AS_OF_NOW) if p else None
+        # 편향 방어층 표면: 근거 span 극성 재검토 대상 (grounding — 관측, 자동 정정 아님)
+        try:
+            flags = _json.loads(i.pop("fj", None) or "{}")
+            gr = flags.get("grounding") or []
+            if gr:
+                i["grounding"] = gr[:3]
+        except Exception:  # noqa: BLE001
+            pass
+        i.pop("fj", None)
         for k in ("mktcap_kr", "sh_out", "mktcap_raw", "chg_krx"):
             i.pop(k, None)
 

@@ -37,7 +37,13 @@ from skg.database import make_repo
 MIN_COOCCUR = 4
 MAX_HEADLINES = 8  # per node / per edge kept for the panel
 MAX_EDGES = 60     # shipped-edge cap (w desc) — every shipped edge carries a summary
-SURGE_MIN_RECENT = 3  # fewer than 3 recent stories -> surge null (weekend/Monday noise)
+# surge windows: 7d vs prior 28d (was 2d vs 7d). Poisson power analysis (감사 2026-07-05):
+# 2d 창은 테마당 >=3.1건/일이 필요해 76개 중 8~11개만 통계가 섰음; 7d/28d면 요구선이
+# ~0.86건/일로 내려가 40여 개 테마가 판별 가능해짐. 의미도 '오늘의 스파이크'가 아니라
+# '이번 주의 부상'으로 더 강건.
+SURGE_RECENT_D = 7
+SURGE_BASE_D = 28
+SURGE_MIN_RECENT = 5  # fewer recent stories -> surge null (표본 미달은 침묵이 정직)
 
 
 def _decay_weight(date_str: str) -> float:
@@ -149,7 +155,7 @@ def compute_theme_data(repo) -> dict:
             (neutral if s == "neutral" else stanced).append({"d": d, "t": t, "s": s})
         return diverse(stanced + neutral, MAX_HEADLINES)
 
-    # 급상승 (surge): last-2-day story rate vs the prior-7-day baseline, additive smoothing.
+    # 급상승 (surge): 최근 7일 스토리율 vs 직전 28일 기준율, additive smoothing.
     # Anchored on the LATEST story date in the corpus (not as_of): a morning run before the
     # day's news pull would otherwise see a half-empty recent window and deflate every theme.
     # Pure function of the corpus + as_of (deterministic); null under the volume floor so a
@@ -159,8 +165,9 @@ def compute_theme_data(repo) -> dict:
     _days_with_news = [d for (_t, d) in theme_day if d and d <= _cap]
     _anchor = max(_days_with_news) if _days_with_news else _cap
     _d0 = _dt.date.fromisoformat(_anchor)
-    _recent_days = {(_d0 - _dt.timedelta(days=k)).isoformat() for k in (0, 1)}
-    _base_days = {(_d0 - _dt.timedelta(days=k)).isoformat() for k in range(2, 9)}
+    _recent_days = {(_d0 - _dt.timedelta(days=k)).isoformat() for k in range(SURGE_RECENT_D)}
+    _base_days = {(_d0 - _dt.timedelta(days=k)).isoformat()
+                  for k in range(SURGE_RECENT_D, SURGE_RECENT_D + SURGE_BASE_D)}
     _per_theme_day = defaultdict(dict)
     for (tt, d), b in theme_day.items():
         _per_theme_day[tt][d] = b["count"]
@@ -171,7 +178,7 @@ def compute_theme_data(repo) -> dict:
         base = sum(c for d, c in days.items() if d in _base_days)
         if rec < SURGE_MIN_RECENT:
             return None, rec
-        return round((rec / 2 + 0.5) / (base / 7 + 0.5), 2), rec
+        return round((rec / SURGE_RECENT_D + 0.5) / (base / SURGE_BASE_D + 0.5), 2), rec
 
     # shipped children per parent (hierarchy payload for the frontend)
     kids = defaultdict(list)
@@ -208,8 +215,11 @@ def compute_theme_data(repo) -> dict:
         related = [{"id": o, "label": label_of(o), "w": w} for w, o in linked if w >= MIN_COOCCUR][:6]
         ws = wstance[t]
         # daily volume series (last ~21 days) for the trend sparkline in the panel
-        tdays = sorted((d, b["count"]) for (tt, d), b in theme_day.items() if tt == t)
-        trend = [c for _, c in tdays[-21:]]
+        # 달력일 기준 최근 21일, 0 포함 — '스토리 있는 날'만 이으면 얇은 테마의 x축이
+        # 수개월을 '최근 21일'로 압축해 왜곡 (감사 표시-유효성 결함 수정)
+        days_map = _per_theme_day.get(t, {})
+        trend = [days_map.get((_d0 - _dt.timedelta(days=k)).isoformat(), 0)
+                 for k in range(20, -1, -1)]
         surge, recent_n = _surge_of(t)
         nodes.append({
             "id": t, "label": label_of(t), "freq": f,
@@ -229,8 +239,16 @@ def compute_theme_data(repo) -> dict:
             "related": related,
             "heads": top(node_heads[t]),
         })
+    # lift = 관측 동시등장 / 독립 기대 (fa·fb/N) — 감사 발견: raw w 기준은 "둘 다 큰 테마라
+    # 우연히 같이 나온" 볼륨성 엣지 11개를 진짜 연관과 구분 없이 실었음. lift<1.5는 정직하게
+    # '볼륨성'으로 표시(제거하지 않음 — 연결 자체는 사실이므로 해석만 붙임).
+    n_stories = max(1, len(groups))
+
     def _mk_edge(a, b, w, weak=False):
         sc = edge_stance[(a, b)]
+        expected = (freq[a] * freq[b]) / n_stories
+        lift = round(w / expected, 1) if expected > 0 else 0.0
+        volume_only = (not weak) and lift < 1.5
         curated = summaries.get("edges", {}).get(f"{a}|{b}", "")
         if curated:
             summary, kind = curated, "curated"
@@ -241,16 +259,21 @@ def compute_theme_data(repo) -> dict:
                      if e and not str(e).startswith("MACRO:")][:3]
             ent_part = f" · 주요 관련: {', '.join(ents3)}" if ents3 else ""
             weak_part = " · 표본 적음(약한 연결)" if weak else ""
-            summary = (f"{label_of(a)}·{label_of(b)} — 최근 뉴스 {w}건에서 함께 등장{ent_part}"
+            vol_part = (" · 두 이슈 모두 뉴스량이 많아 함께 등장한 성격이 큼(특이 연관 약함)"
+                        if volume_only else "")
+            summary = (f"{label_of(a)}·{label_of(b)} — 최근 뉴스 {w}건에서 함께 등장"
+                       f" (우연 기대 대비 {lift}배){ent_part}"
                        f" · 논조 긍정 {sc['bullish']}·부정 {sc['bearish']}·중립 {sc['neutral']}"
-                       f"{weak_part}")
+                       f"{weak_part}{vol_part}")
             kind = "auto"
-        e = {"a": a, "b": b, "w": w,
+        e = {"a": a, "b": b, "w": w, "lift": lift,
              "summary": summary, "summary_kind": kind,
              "stance": {"bull": sc["bullish"], "bear": sc["bearish"], "neut": sc["neutral"]},
              "heads": top(edge_heads[(a, b)])}
         if weak:
             e["weak"] = True
+        if volume_only:
+            e["volume_only"] = True
         return e
 
     edges = [_mk_edge(a, b, w) for (a, b), w in cooc.items() if w >= MIN_COOCCUR]

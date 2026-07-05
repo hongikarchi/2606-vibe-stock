@@ -333,13 +333,20 @@ class Neo4jRepository:
         )
 
     def set_issuer_52w_stats(self, stats: dict) -> None:
-        """52w position + 1y max drawdown per issuer, from the same 1y batch. Descriptive."""
+        """52w position + 1y max drawdown + the 1y closes window per issuer, from the same
+        1y batch (the audit's 'fetched then thrown away' fix). Rolling overwrite — always
+        the freshest 52 weeks; longer history lives in data/history backfills."""
         if not stats:
             return
+        import json as _json
         self._write(
             "UNWIND $rows AS r MATCH (i:Issuer {issuer_id: r.iid}) "
-            "SET i.pos_52w = r.pos, i.mdd_1y = r.mdd",
-            rows=[{"iid": k, "pos": v["pos"], "mdd": v["mdd"]} for k, v in stats.items()],
+            "SET i.pos_52w = r.pos, i.mdd_1y = r.mdd, "
+            "    i.px_1y_closes = r.closes, i.px_1y_dates = r.dates",
+            rows=[{"iid": k, "pos": v["pos"], "mdd": v["mdd"],
+                   "closes": _json.dumps(v.get("closes") or []),
+                   "dates": _json.dumps(v.get("dates") or [])}
+                  for k, v in stats.items()],
         )
 
     def set_issuer_krx_state(self, rows: list[dict], as_of: str) -> None:
