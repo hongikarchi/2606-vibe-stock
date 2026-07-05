@@ -229,10 +229,7 @@ def compute_theme_data(repo) -> dict:
             "related": related,
             "heads": top(node_heads[t]),
         })
-    edges = []
-    for (a, b), w in cooc.items():
-        if w < MIN_COOCCUR:
-            continue
+    def _mk_edge(a, b, w, weak=False):
         sc = edge_stance[(a, b)]
         curated = summaries.get("edges", {}).get(f"{a}|{b}", "")
         if curated:
@@ -243,17 +240,40 @@ def compute_theme_data(repo) -> dict:
             ents3 = [e for e, _ in edge_entities[(a, b)].most_common(3)
                      if e and not str(e).startswith("MACRO:")][:3]
             ent_part = f" · 주요 관련: {', '.join(ents3)}" if ents3 else ""
+            weak_part = " · 표본 적음(약한 연결)" if weak else ""
             summary = (f"{label_of(a)}·{label_of(b)} — 최근 뉴스 {w}건에서 함께 등장{ent_part}"
-                       f" · 논조 긍정 {sc['bullish']}·부정 {sc['bearish']}·중립 {sc['neutral']}")
+                       f" · 논조 긍정 {sc['bullish']}·부정 {sc['bearish']}·중립 {sc['neutral']}"
+                       f"{weak_part}")
             kind = "auto"
-        edges.append({
-            "a": a, "b": b, "w": w,
-            "summary": summary, "summary_kind": kind,
-            "stance": {"bull": sc["bullish"], "bear": sc["bearish"], "neut": sc["neutral"]},
-            "heads": top(edge_heads[(a, b)]),
-        })
+        e = {"a": a, "b": b, "w": w,
+             "summary": summary, "summary_kind": kind,
+             "stance": {"bull": sc["bullish"], "bear": sc["bearish"], "neut": sc["neutral"]},
+             "heads": top(edge_heads[(a, b)])}
+        if weak:
+            e["weak"] = True
+        return e
+
+    edges = [_mk_edge(a, b, w) for (a, b), w in cooc.items() if w >= MIN_COOCCUR]
     edges.sort(key=lambda e: (-e["w"], e["a"], e["b"]))
     edges = edges[:MAX_EDGES]
+
+    # 부모 최소 1엣지 보장: 임계(4) 미달로 고립된 부모는 최강 동시등장 1개를 '약한 연결'로
+    # 편입 (w>=2 — 1건짜리는 일화라 제외). 측정(2026-07-05): 고립 9개 중 7개가 w=2~3의
+    # 실제 연결을 갖고 있었음 (조선-유가 3, 조선-방산 3, 트럼프-지정학 2 …). 그래도 남는
+    # 고립(gold, trade)은 노드에 isolated 표시 — 강제 연결보다 정직한 공백.
+    linked = {e["a"] for e in edges} | {e["b"] for e in edges}
+    for p in sorted(set(freq) & set(THEMES)):
+        if p in linked:
+            continue
+        cands = sorted(((w, a, b) for (a, b), w in cooc.items()
+                        if w >= 2 and p in (a, b)), reverse=True)
+        if cands:
+            w, a, b = cands[0]
+            edges.append(_mk_edge(a, b, w, weak=True))
+            linked |= {a, b}
+    for n in nodes:
+        if n["level"] == 0 and n["id"] not in linked:
+            n["isolated"] = True   # 코퍼스 표본 부족 — UI가 흐리게 + 패널에 사유 표시
     nodes.sort(key=lambda n: n["id"])   # byte-identical artifact across runs
 
     # 이슈→종목→가격: real daily move + 52w position per related entity (export-time join;

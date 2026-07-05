@@ -79,12 +79,16 @@ export default function ThemesView({ useArtifact }) {
     const visNodes = data.nodes.map((n) => {
       const col = n.level === 0 ? (parentColor[n.id] || "#789") : (parentColor[n.parent] || "#789");
       const hot = riserIds.has(n.id);
+      const dim = n.isolated;   // 코퍼스 표본 부족으로 연결 없는 이슈 — 흐리게
       return {
         id: n.id, label: n.label + (hot ? " ▲" : ""), value: n.heat ?? n.freq, level: n.level, parent: n.parent,
-        color: hot ? { background: col, border: "#FFD93D" } : col, shape: "dot",
+        color: hot ? { background: col, border: "#FFD93D" }
+             : dim ? { background: "#3a4252", border: "#2a3344" } : col,
+        shape: "dot",
+        opacity: dim ? 0.55 : 1,
         borderWidth: hot ? 3 : 1,
-        font: { size: n.level === 0 ? 18 : 13, color: "#fff", strokeWidth: 3, strokeColor: "#0b0f1a" },
-        scaling: { min: n.level === 0 ? 16 : 10, max: n.level === 0 ? 60 : 26 },
+        font: { size: n.level === 0 ? 18 : 13, color: dim ? "#99a" : "#fff", strokeWidth: 3, strokeColor: "#0b0f1a" },
+        scaling: { min: n.level === 0 ? 16 : 10, max: n.level === 0 ? (dim ? 24 : 60) : 26 },
       };
     });
     // child -> parent containment edges (hierarchy), + parent-parent co-occurrence (the macro web)
@@ -95,7 +99,9 @@ export default function ThemesView({ useArtifact }) {
     const eMax = Math.max(...data.edges.map((e) => e.w), 1);
     const coocc = data.edges.map((e, i) => ({
       id: "e" + i, from: e.a, to: e.b, value: e.w,
-      width: 1 + 9 * (e.w / eMax), color: { color: "#8899bb55", highlight: "#5AC8FA" },
+      width: e.weak ? 1 : 1 + 9 * (e.w / eMax),
+      dashes: e.weak ? [4, 6] : false,   // 약한 연결(표본 적음)은 점선
+      color: { color: e.weak ? "#66779955" : "#8899bb55", highlight: "#5AC8FA" },
       title: e.summary ? e.summary.slice(0, 60) + (e.summary.length > 60 ? "…" : "") : undefined,
     }));
 
@@ -123,6 +129,32 @@ export default function ThemesView({ useArtifact }) {
     };
     const collapseAll = () => parents.forEach((p) => clusterParent(p.id));
 
+    // 물리 동결 후에도 잔잔하게 열리도록: 자식들을 부모 주위 결정론적 링으로 배치
+    // (물리 재가동 없음 — "클릭하면 미친듯이 튀는" 문제의 해결책)
+    const openCalm = (cid) => {
+      if (!net.isCluster(cid)) return;
+      let cpos = { x: 0, y: 0 };
+      try { cpos = net.getPositions([cid])[cid] || cpos; } catch (e) { /* none */ }
+      try {
+        net.openCluster(cid, {
+          releaseFunction: (clusterPos, contained) => {
+            const p = clusterPos || cpos;
+            const ids = Object.keys(contained).sort();
+            const pid = ids.find((i) => byId[i]?.level === 0);
+            const kids = ids.filter((i) => i !== pid);
+            const R = 90 + kids.length * 7;
+            const out = {};
+            if (pid) out[pid] = { x: p.x, y: p.y };
+            kids.forEach((i, k) => {
+              const ang = (2 * Math.PI * k) / Math.max(1, kids.length);
+              out[i] = { x: p.x + R * Math.cos(ang), y: p.y + R * Math.sin(ang) };
+            });
+            return out;
+          },
+        });
+      } catch (e) { /* none */ }
+    };
+
     let collapsed = true;       // current LOD state; only act on threshold CROSSINGS
     // open-threshold is set RELATIVE to the actual post-fit scale, not a fixed constant: the
     // fit scale depends on graph size + viewport, and a fixed 0.75 was unreachable in a few
@@ -133,12 +165,12 @@ export default function ThemesView({ useArtifact }) {
     net.once("stabilizationIterationsDone", () => {
       collapseAll();            // start collapsed: 부모 blob만 보임
       collapsed = true;
+      // 초기 배치가 끝나면 물리를 영구 동결 — 이후의 모든 이동은 결정론적 배치(openCalm)만.
+      // (물리가 계속 켜져 있으면 클러스터 개폐·클릭 때마다 그래프 전체가 요동)
+      net.setOptions({ physics: false });
       // 급상승 top-3가 속한 부모만 자동 펼침 — 오늘의 변화가 접힌 채 숨지 않게
       const hotParents = new Set([...riserIds].map((id) => byId[id]?.parent || id));
-      hotParents.forEach((pid) => {
-        const cid = CLUSTER_PREFIX + pid;
-        if (net.isCluster(cid)) { try { net.openCluster(cid); } catch (e) { /* none */ } }
-      });
+      hotParents.forEach((pid) => openCalm(CLUSTER_PREFIX + pid));
       net.fit({ animation: true });
     });
     // after the fit animation settles, anchor the threshold just above the resting scale
@@ -152,23 +184,22 @@ export default function ThemesView({ useArtifact }) {
     net.on("zoom", (p) => {
       if (p.scale >= openAt && collapsed) {
         collapsed = false;
-        parents.forEach((par) => {
-          const cid = CLUSTER_PREFIX + par.id;
-          if (net.isCluster(cid)) { try { net.openCluster(cid); } catch (e) { /* none */ } }
-        });
+        parents.forEach((par) => openCalm(CLUSTER_PREFIX + par.id));
       } else if (p.scale < openAt && !collapsed) {
         collapsed = true;
         collapseAll();
       }
     });
 
+    net._openCalm = openCalm;   // focusNode (컴포넌트 스코프) 가 재사용
+
     net.on("click", (p) => {
       if (p.nodes.length) {
         let id = p.nodes[0];
         if (typeof id === "string" && id.startsWith(CLUSTER_PREFIX)) {
-          // clicking a collapsed blob opens it AND shows the parent panel
+          // clicking a collapsed blob opens it (calmly) AND shows the parent panel
           const pid = id.slice(CLUSTER_PREFIX.length);
-          if (net.isCluster(id)) net.openCluster(id);
+          openCalm(id);
           setTrail([]); setSel({ kind: "node", id: pid });
           return;
         }
@@ -193,7 +224,7 @@ export default function ThemesView({ useArtifact }) {
     const n = byId[id];
     if (!net || !n) return;
     const cid = CLUSTER_PREFIX + (n.level === 1 ? n.parent : id);
-    try { if (net.isCluster(cid)) net.openCluster(cid); } catch (e) { /* none */ }
+    try { if (net._openCalm) net._openCalm(cid); } catch (e) { /* none */ }
     try { net.focus(id, { scale: 0.9, animation: true }); } catch (e) { /* none */ }
     setTrail([]); setSel({ kind: "node", id });
   };
@@ -247,6 +278,7 @@ export default function ThemesView({ useArtifact }) {
           <Crumbs trail={trail} />
           <h2>{n.label}{n.level === 1 && n.parent && byId[n.parent] && <span style={{ fontSize: 13, color: "#789" }}> · {byId[n.parent].label}</span>}</h2>
           <div className="sub">뉴스 {n.freq}건 · <span style={{ color: "#FFD93D" }}>지금 열기 {n.heat}</span> <span style={{ color: "#667" }}>(최근 가중)</span></div>
+          {n.isolated && <div className="legend">⚪ 이 이슈는 현재 코퍼스에서 다른 이슈와의 동시등장 표본이 부족해 연결선이 없습니다 (강제 연결 대신 정직한 공백).</div>}
           {n.summary && <div className="summary"><span className="tag">📝 무슨 얘기인가 ({data.summary_date || "최근"} 기준)</span>{n.summary}</div>}
           <StanceBar stance={n.stance} />
           <TrendChart trend={n.trend} />
